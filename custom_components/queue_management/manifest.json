@@ -1,0 +1,13 @@
+{
+  "domain": "queue_management",
+  "name": "Queue Management",
+  "codeowners": ["@saboaua"],
+  "config_flow": true,
+  "documentation": "https://github.com/saboaua/queue_management",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/saboaua/queue_management/issues",
+  "requirements": [],
+  "version": "1.0.0",
+  "integration_type": "service",
+  "single_config_entry": true
+}

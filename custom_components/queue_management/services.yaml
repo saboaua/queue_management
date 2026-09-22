@@ -1,0 +1,97 @@
+take_ticket:
+  name: Take ticket
+  description: Issue the next ticket number for a queue.
+  fields:
+    queue_id:
+      name: Queue ID
+      description: ID of the queue (default: main).
+      example: main
+      selector:
+        text:
+
+call_next:
+  name: Call next
+  description: Call the next waiting ticket in the queue.
+  fields:
+    queue_id:
+      name: Queue ID
+      description: ID of the queue (default: main).
+      example: main
+      selector:
+        text:
+
+call_ticket:
+  name: Call ticket
+  description: Call a specific ticket number.
+  fields:
+    queue_id:
+      name: Queue ID
+      description: ID of the queue (default: main).
+      example: main
+      selector:
+        text:
+    ticket:
+      name: Ticket number
+      description: The ticket number to call.
+      required: true
+      example: 42
+      selector:
+        number:
+          min: 1
+          mode: box
+
+reset_queue:
+  name: Reset queue
+  description: Reset a queue to its starting number and clear waiting tickets.
+  fields:
+    queue_id:
+      name: Queue ID
+      description: ID of the queue (default: main).
+      example: main
+      selector:
+        text:
+
+create_queue:
+  name: Create queue
+  description: Create a new named queue.
+  fields:
+    queue_id:
+      name: Queue ID
+      description: Unique ID for the queue (lowercase, no spaces).
+      required: true
+      example: vip
+      selector:
+        text:
+    name:
+      name: Display name
+      description: Friendly name shown in the UI.
+      example: VIP Counter
+      selector:
+        text:
+    prefix:
+      name: Prefix
+      description: Optional prefix for ticket numbers (e.g. A, VIP).
+      example: V
+      selector:
+        text:
+    start_number:
+      name: Start number
+      description: First ticket number (default 1).
+      example: 1
+      default: 1
+      selector:
+        number:
+          min: 1
+          mode: box
+
+delete_queue:
+  name: Delete queue
+  description: Delete a queue (cannot delete the main queue).
+  fields:
+    queue_id:
+      name: Queue ID
+      description: ID of the queue to delete.
+      required: true
+      example: vip
+      selector:
+        text:

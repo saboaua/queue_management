@@ -1,0 +1,129 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Queue Management",
+        "description": "Set up Queue Management. You can create additional queues later via services or the UI.",
+        "data": {
+          "name": "Integration name"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Queue Management is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Queue Management Options",
+        "description": "Currently no options. Use services to manage queues."
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "current": {
+        "name": "Current serving"
+      },
+      "last_issued": {
+        "name": "Last ticket issued"
+      },
+      "waiting": {
+        "name": "Waiting"
+      },
+      "status": {
+        "name": "Status"
+      }
+    },
+    "button": {
+      "take_ticket": {
+        "name": "Take ticket"
+      },
+      "call_next": {
+        "name": "Call next"
+      },
+      "reset": {
+        "name": "Reset queue"
+      }
+    }
+  },
+  "services": {
+    "take_ticket": {
+      "name": "Take ticket",
+      "description": "Issue the next ticket number for a queue.",
+      "fields": {
+        "queue_id": {
+          "name": "Queue ID",
+          "description": "ID of the queue (default: main)."
+        }
+      }
+    },
+    "call_next": {
+      "name": "Call next",
+      "description": "Call the next waiting ticket in the queue.",
+      "fields": {
+        "queue_id": {
+          "name": "Queue ID",
+          "description": "ID of the queue (default: main)."
+        }
+      }
+    },
+    "call_ticket": {
+      "name": "Call ticket",
+      "description": "Call a specific ticket number.",
+      "fields": {
+        "queue_id": {
+          "name": "Queue ID",
+          "description": "ID of the queue (default: main)."
+        },
+        "ticket": {
+          "name": "Ticket number",
+          "description": "The ticket number to call."
+        }
+      }
+    },
+    "reset_queue": {
+      "name": "Reset queue",
+      "description": "Reset a queue to its starting number and clear waiting tickets.",
+      "fields": {
+        "queue_id": {
+          "name": "Queue ID",
+          "description": "ID of the queue (default: main)."
+        }
+      }
+    },
+    "create_queue": {
+      "name": "Create queue",
+      "description": "Create a new named queue.",
+      "fields": {
+        "queue_id": {
+          "name": "Queue ID",
+          "description": "Unique ID for the queue (lowercase, no spaces)."
+        },
+        "name": {
+          "name": "Display name",
+          "description": "Friendly name shown in the UI."
+        },
+        "prefix": {
+          "name": "Prefix",
+          "description": "Optional prefix for ticket numbers (e.g. A, VIP)."
+        },
+        "start_number": {
+          "name": "Start number",
+          "description": "First ticket number (default 1)."
+        }
+      }
+    },
+    "delete_queue": {
+      "name": "Delete queue",
+      "description": "Delete a queue (cannot delete the main queue).",
+      "fields": {
+        "queue_id": {
+          "name": "Queue ID",
+          "description": "ID of the queue to delete."
+        }
+      }
+    }
+  }
+}
