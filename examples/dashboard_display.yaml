@@ -1,10 +1,13 @@
 # ============================================================
 # PUBLIC DISPLAY / WAITING AREA SCREEN
 # ============================================================
-# Large screen or TV in the waiting area that only shows
-# the current number being served.
+# ONE-TIME SETUP:
+# 1. Settings → Dashboards → Add Dashboard
+#    Title: Waiting Area   |   URL path: display
+# 2. Open → ⋮ → Raw configuration editor → paste this file
+# 3. Save
 #
-# Access:
+# TV / tablet URL:
 #   http://YOUR-HA-IP:8123/lovelace/display
 # ============================================================
 
@@ -19,43 +22,12 @@ views:
           - type: markdown
             content: |
               # NOW SERVING
-            card_mod:
-              style: |
-                ha-card {
-                  text-align: center;
-                  background: #1a365d;
-                  color: white;
-                  font-size: 2.5em;
-                  border: none;
-                  box-shadow: none;
-                }
 
           - type: entity
             entity: sensor.main_queue_current_serving
             name: " "
             icon: none
-            card_mod:
-              style: |
-                ha-card {
-                  text-align: center;
-                  font-size: 12em;
-                  font-weight: 900;
-                  padding: 60px;
-                  background: #ebf8ff;
-                  color: #2b6cb0;
-                  border: none;
-                  box-shadow: none;
-                }
 
           - type: markdown
             content: |
               Please wait for your number to be called
-            card_mod:
-              style: |
-                ha-card {
-                  text-align: center;
-                  font-size: 1.8em;
-                  color: #4a5568;
-                  border: none;
-                  box-shadow: none;
-                }

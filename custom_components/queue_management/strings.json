@@ -23,6 +23,9 @@
   },
   "entity": {
     "sensor": {
+      "access_links": {
+        "name": "Access links"
+      },
       "current": {
         "name": "Current serving"
       },

@@ -1,20 +1,18 @@
 # ============================================================
 # RECEPTION / TICKET DESK DASHBOARD
 # ============================================================
-# How to use:
-# 1. Go to Settings → Dashboards → Add Dashboard
-# 2. Create a new dashboard named "Reception" (url path: reception)
-# 3. Edit the dashboard → three dots → Raw configuration editor
-# 4. Paste this entire YAML
-# 5. Save
+# ONE-TIME SETUP:
+# 1. Settings → Dashboards → Add Dashboard
+#    Title: Reception   |   URL path: reception
+# 2. Open the new dashboard → ⋮ → Raw configuration editor
+# 3. Delete everything and paste THIS entire file
+# 4. Save
 #
-# Access on tablet:
+# Then open on the tablet:
 #   http://YOUR-HA-IP:8123/lovelace/reception
-#   or
-#   http://homeassistant.local:8123/lovelace/reception
 #
-# Tip: On the tablet browser enable "Add to Home Screen" and
-#      open in fullscreen / kiosk mode for a clean look.
+# Find the exact entity IDs under:
+#   Settings → Devices & Services → Queue Management → Main Queue
 # ============================================================
 
 title: Reception
@@ -23,26 +21,14 @@ views:
     path: take
     icon: mdi:ticket-confirmation
     cards:
-      # Welcome header
       - type: markdown
         content: |
           # 🎫 Welcome
           Please take a number and wait to be called.
-        card_mod:
-          style: |
-            ha-card {
-              text-align: center;
-              background: linear-gradient(135deg, #1e3a5f, #2c5282);
-              color: white;
-              font-size: 1.4em;
-              padding: 16px;
-            }
 
-      # Big TAKE TICKET button
       - type: button
         name: TAKE TICKET
         icon: mdi:ticket
-        entity: button.main_queue_take_ticket
         show_state: false
         show_icon: true
         tap_action:
@@ -52,21 +38,7 @@ views:
             queue_id: main
         hold_action:
           action: none
-        card_mod:
-          style: |
-            ha-card {
-              --mdc-icon-size: 80px;
-              font-size: 2.2em;
-              font-weight: bold;
-              height: 180px;
-              background: #38a169;
-              color: white;
-            }
-            ha-card:active {
-              background: #2f855a;
-            }
 
-      # Your number display
       - type: entities
         title: Your Ticket Number
         show_header_toggle: false
@@ -74,20 +46,7 @@ views:
           - entity: sensor.main_queue_last_ticket_issued
             name: Number
             icon: mdi:ticket-confirmation-outline
-        card_mod:
-          style: |
-            ha-card {
-              font-size: 2.5em;
-              text-align: center;
-              padding: 24px;
-            }
-            .value {
-              font-size: 3.5em !important;
-              font-weight: bold;
-              color: #2b6cb0;
-            }
 
-      # Waiting info
       - type: glance
         title: Queue Status
         columns: 2
@@ -99,14 +58,8 @@ views:
             name: Now Serving
             icon: mdi:account-voice
 
-      # Optional: Reset (usually hidden or only for staff)
       - type: entities
         title: Staff Only
         entities:
           - entity: button.main_queue_reset_queue
             name: Reset Queue
-        card_mod:
-          style: |
-            ha-card {
-              opacity: 0.6;
-            }

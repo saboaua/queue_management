@@ -6,8 +6,10 @@ from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.device_registry import DeviceEntryType
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.network import get_url
 
 from .const import DOMAIN
 from .queue import QueueManager, SIGNAL_UPDATE
@@ -22,6 +24,10 @@ async def async_setup_entry(
     manager: QueueManager = hass.data[DOMAIN]
 
     entities: list[SensorEntity] = []
+
+    # One system-level sensor that shows the tablet access links
+    entities.append(AccessLinksSensor(hass, manager))
+
     for queue in manager.queues.values():
         entities.extend(
             [
@@ -35,6 +41,55 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
+class AccessLinksSensor(SensorEntity):
+    """Shows the recommended dashboard URLs for tablets."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:link-variant"
+    _attr_translation_key = "access_links"
+    _attr_unique_id = f"{DOMAIN}_access_links"
+
+    def __init__(self, hass: HomeAssistant, manager: QueueManager) -> None:
+        self.hass = hass
+        self._manager = manager
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, "system")},
+            name="Queue Management",
+            manufacturer="Queue Management",
+            model="System",
+            entry_type=DeviceEntryType.SERVICE,
+        )
+
+    @property
+    def native_value(self) -> str:
+        return "Ready – create dashboards once (see attributes)"
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        try:
+            base = get_url(self.hass, prefer_external=False)
+        except Exception:
+            base = "http://homeassistant.local:8123"
+
+        base = base.rstrip("/")
+
+        return {
+            "reception_url": f"{base}/lovelace/reception",
+            "calling_url": f"{base}/lovelace/calling",
+            "display_url": f"{base}/lovelace/display",
+            "howto": (
+                "1. Settings → Dashboards → Add Dashboard "
+                "(paths: reception, calling, display). "
+                "2. Open each → ⋮ → Raw configuration editor. "
+                "3. Paste YAML from the examples/ folder of this integration. "
+                "4. Open the URLs above on your tablets."
+            ),
+            "queues": list(self._manager.queues.keys()),
+        }
+
+
 class QueueBaseSensor(SensorEntity):
     """Base class for queue sensors."""
 
@@ -44,11 +99,13 @@ class QueueBaseSensor(SensorEntity):
     def __init__(self, manager: QueueManager, queue_id: str) -> None:
         self._manager = manager
         self._queue_id = queue_id
+        q = manager.queues[queue_id]
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, queue_id)},
-            name=manager.queues[queue_id].name,
+            name=q.name,
             manufacturer="Queue Management",
             model="Virtual Queue",
+            via_device=(DOMAIN, "system"),
         )
 
     @property
