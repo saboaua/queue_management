@@ -77,7 +77,7 @@ class AccessLinksSensor(SensorEntity):
 
         return {
             "panel_url": f"{base}/queue-management",
-            "direct_ui": f"{base}/queue_management/static/index.html",
+            "direct_ui": f"{base}/queue_management/ui",
             "reception_note": "Open the Queue Management sidebar item, then choose Reception mode",
             "calling_note": "Open the Queue Management sidebar item, then choose Calling Desk mode",
             "display_note": "Open the Queue Management sidebar item, then choose Display mode (or open direct_ui on a TV)",

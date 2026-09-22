@@ -61,7 +61,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             sidebar_title=PANEL_TITLE,
             sidebar_icon=PANEL_ICON,
             frontend_url_path=PANEL_URL_PATH,
-            config={"url": "/queue_management/static/index.html"},
+            config={"url": "/queue_management/ui"},
             require_admin=False,
         )
         _LOGGER.info(

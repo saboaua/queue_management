@@ -1,8 +1,18 @@
-"""HTTP views and static frontend for Queue Management panel."""
+"""HTTP views and frontend for Queue Management panel.
+
+Auth model (works in sidebar iframe + tablets):
+1. UI page (/queue_management/ui) requires a normal HA login.
+2. When serving the page we inject a server-side secret into the HTML.
+3. API endpoints accept either:
+   - standard HA auth (Bearer / session), OR
+   - header X-Queue-Management-Secret matching the server secret.
+This avoids broken cookie/token behaviour inside iframes.
+"""
 
 from __future__ import annotations
 
 import logging
+import secrets
 from pathlib import Path
 
 from aiohttp import web
@@ -15,10 +25,72 @@ from .queue import QueueManager
 _LOGGER = logging.getLogger(__name__)
 
 FRONTEND_PATH = Path(__file__).parent / "frontend"
+SECRET_HEADER = "X-Queue-Management-Secret"
 
 
 def _manager(hass: HomeAssistant) -> QueueManager | None:
     return hass.data.get(DOMAIN)
+
+
+def _get_secret(hass: HomeAssistant) -> str:
+    meta = hass.data.setdefault(f"{DOMAIN}_meta", {})
+    if "ui_secret" not in meta:
+        meta["ui_secret"] = secrets.token_urlsafe(32)
+    return meta["ui_secret"]
+
+
+def _check_secret(request: web.Request, hass: HomeAssistant) -> bool:
+    expected = _get_secret(hass)
+    got = request.headers.get(SECRET_HEADER, "")
+    if not expected or not got or len(expected) != len(got):
+        return False
+    return secrets.compare_digest(got, expected)
+
+
+async def _authorized(request: web.Request, hass: HomeAssistant) -> bool:
+    """Accept UI secret header or HA Bearer token or hass_user on request."""
+    if _check_secret(request, hass):
+        return True
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.lower().startswith("bearer "):
+        token = auth_header[7:].strip()
+        try:
+            user = await hass.auth.async_validate_access_token(token)
+            if user:
+                return True
+        except Exception:
+            pass
+    if request.get("hass_user") is not None:
+        return True
+    return False
+
+
+class QueueUIView(HomeAssistantView):
+    """Serve the SPA HTML (requires HA login). Injects API secret."""
+
+    url = "/queue_management/ui"
+    name = "queue_management:ui"
+    requires_auth = True
+
+    async def get(self, request: web.Request) -> web.Response:
+        hass: HomeAssistant = request.app["hass"]
+        index_path = FRONTEND_PATH / "index.html"
+        try:
+            html = index_path.read_text(encoding="utf-8")
+        except OSError as err:
+            return web.Response(text=f"Frontend missing: {err}", status=500)
+
+        secret = _get_secret(hass)
+        inject = (
+            f"<script>window.QM_SECRET={secret!r};"
+            f"window.QM_BASE='';</script>"
+        )
+        if "<head>" in html:
+            html = html.replace("<head>", f"<head>{inject}", 1)
+        else:
+            html = inject + html
+
+        return web.Response(text=html, content_type="text/html; charset=utf-8")
 
 
 class QueueStateView(HomeAssistantView):
@@ -26,12 +98,16 @@ class QueueStateView(HomeAssistantView):
 
     url = "/api/queue_management/state"
     name = "api:queue_management:state"
-    requires_auth = True
+    requires_auth = False  # we enforce secret OR HA auth below
+    cors_allowed = True
 
     async def get(self, request: web.Request) -> web.Response:
         hass: HomeAssistant = request.app["hass"]
+        if not await _authorized(request, hass):
+            return self.json({"error": "Not authenticated"}, status_code=401)
+
         manager = _manager(hass)
-        if not manager:
+        if not manager or not isinstance(manager, QueueManager):
             return self.json({"error": "Integration not loaded"}, status_code=503)
 
         queues_data = []
@@ -72,17 +148,22 @@ class QueueStateView(HomeAssistantView):
         )
 
 
+
 class QueueActionView(HomeAssistantView):
     """Perform queue actions."""
 
     url = "/api/queue_management/action"
     name = "api:queue_management:action"
-    requires_auth = True
+    requires_auth = False
+    cors_allowed = True
 
     async def post(self, request: web.Request) -> web.Response:
         hass: HomeAssistant = request.app["hass"]
+        if not await _authorized(request, hass):
+            return self.json({"error": "Not authenticated"}, status_code=401)
+
         manager = _manager(hass)
-        if not manager:
+        if not manager or not isinstance(manager, QueueManager):
             return self.json({"error": "Integration not loaded"}, status_code=503)
 
         try:
@@ -147,10 +228,14 @@ class QueueSettingsView(HomeAssistantView):
 
     url = "/api/queue_management/settings"
     name = "api:queue_management:settings"
-    requires_auth = True
+    requires_auth = False
+    cors_allowed = True
 
     async def post(self, request: web.Request) -> web.Response:
         hass: HomeAssistant = request.app["hass"]
+        if not await _authorized(request, hass):
+            return self.json({"error": "Not authenticated"}, status_code=401)
+
         entry = next(iter(hass.config_entries.async_entries(DOMAIN)), None)
         if not entry:
             return self.json({"error": "No config entry"}, status_code=404)
@@ -175,11 +260,16 @@ class QueueSettingsView(HomeAssistantView):
 
 
 async def async_setup_http(hass: HomeAssistant) -> None:
-    """Register HTTP views and static frontend (must be awaited)."""
+    """Register HTTP views and static assets (CSS/JS)."""
+    # Ensure secret exists
+    _get_secret(hass)
+
+    hass.http.register_view(QueueUIView())
     hass.http.register_view(QueueStateView())
     hass.http.register_view(QueueActionView())
     hass.http.register_view(QueueSettingsView())
 
+    # Static assets only (css/js) – HTML is served by QueueUIView
     try:
         await hass.http.async_register_static_paths(
             [
@@ -191,25 +281,19 @@ async def async_setup_http(hass: HomeAssistant) -> None:
             ]
         )
     except TypeError:
-        # Older HA signature
-        await hass.http.async_register_static_paths(
-            [
-                StaticPathConfig(
-                    "/queue_management/static",
-                    str(FRONTEND_PATH),
-                    False,
-                )
-            ]
-        )
-    except Exception as err:
-        _LOGGER.warning("Static path registration issue: %s – trying legacy", err)
         try:
-            hass.http.register_static_path(
-                "/queue_management/static",
-                str(FRONTEND_PATH),
-                cache_headers=False,
+            await hass.http.async_register_static_paths(
+                [StaticPathConfig("/queue_management/static", str(FRONTEND_PATH), False)]
             )
-        except Exception as err2:
-            _LOGGER.error("Could not register frontend static path: %s", err2)
+        except Exception as err:
+            _LOGGER.warning("static path: %s", err)
+            try:
+                hass.http.register_static_path(
+                    "/queue_management/static", str(FRONTEND_PATH), cache_headers=False
+                )
+            except Exception as err2:
+                _LOGGER.error("Could not register static path: %s", err2)
 
-    _LOGGER.info("Queue Management API + frontend registered")
+    _LOGGER.info(
+        "Queue Management UI at /queue_management/ui  |  panel path /queue-management"
+    )
