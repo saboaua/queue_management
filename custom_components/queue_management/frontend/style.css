@@ -318,3 +318,96 @@ EOF
   background: var(--blue);
   color: white;
 }
+
+.section-title { margin-bottom: 16px; font-size: 1.3rem; }
+.cashier-pick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  background: var(--card);
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+.cashier-pick label { color: var(--muted); font-weight: 600; }
+.cashier-pick select {
+  flex: 1;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.now-serving-box .sub {
+  margin-top: 8px;
+  font-size: 1.2rem;
+  opacity: 0.9;
+}
+.display-cashier {
+  font-size: 1.8rem;
+  margin-top: 12px;
+  color: #93c5fd;
+  font-weight: 700;
+}
+.cashier-list .row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.cashier-list .row.busy { color: var(--orange); }
+.cashier-list .row.idle { color: var(--muted); }
+.badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+.cashier-edit {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr auto auto;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+.cashier-edit input[type="text"] {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+.btn-x {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.color-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.color-grid label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.color-grid input[type="color"] {
+  width: 48px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}

@@ -8,7 +8,6 @@
 </head>
 <body>
   <div id="app">
-    <!-- Top bar -->
     <header class="topbar">
       <div class="brand">
         <span class="logo">🎫</span>
@@ -18,6 +17,7 @@
         <button data-mode="reception" class="mode-btn active">Reception</button>
         <button data-mode="calling" class="mode-btn">Calling Desk</button>
         <button data-mode="display" class="mode-btn">Display</button>
+        <button data-mode="manager" class="mode-btn">Manager</button>
         <button data-mode="admin" class="mode-btn">Admin</button>
       </nav>
       <div class="queue-select-wrap">
@@ -26,7 +26,7 @@
     </header>
 
     <main>
-      <!-- RECEPTION MODE -->
+      <!-- RECEPTION -->
       <section id="mode-reception" class="mode-panel active">
         <div class="hero">
           <h1>Welcome</h1>
@@ -39,40 +39,30 @@
           <div class="hint">Please wait for your number to be called</div>
         </div>
         <div class="stats-row">
-          <div class="stat">
-            <div class="stat-value" id="rWaiting">0</div>
-            <div class="stat-label">Waiting</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value" id="rCurrent">—</div>
-            <div class="stat-label">Now Serving</div>
-          </div>
+          <div class="stat"><div class="stat-value" id="rWaiting">0</div><div class="stat-label">Waiting</div></div>
+          <div class="stat"><div class="stat-value" id="rCurrent">—</div><div class="stat-label">Now Serving</div></div>
         </div>
       </section>
 
-      <!-- CALLING DESK MODE -->
+      <!-- CALLING DESK -->
       <section id="mode-calling" class="mode-panel">
+        <div class="cashier-pick">
+          <label for="cashierSelect">Serving as</label>
+          <select id="cashierSelect"></select>
+        </div>
         <div class="now-serving-box">
           <div class="label">NOW SERVING</div>
           <div class="big-number" id="cCurrent">—</div>
+          <div class="sub" id="cCashierLine"></div>
         </div>
         <div class="action-row">
           <button id="btnCallNext" class="btn-huge btn-orange">CALL NEXT</button>
           <button id="btnComplete" class="btn-med btn-blue">Complete / Close</button>
         </div>
         <div class="stats-row">
-          <div class="stat">
-            <div class="stat-value" id="cWaiting">0</div>
-            <div class="stat-label">Waiting</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value" id="cLast">—</div>
-            <div class="stat-label">Last Issued</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value" id="cStatus">idle</div>
-            <div class="stat-label">Status</div>
-          </div>
+          <div class="stat"><div class="stat-value" id="cWaiting">0</div><div class="stat-label">Waiting</div></div>
+          <div class="stat"><div class="stat-value" id="cLast">—</div><div class="stat-label">Last Issued</div></div>
+          <div class="stat"><div class="stat-value" id="cStatus">idle</div><div class="stat-label">Status</div></div>
         </div>
         <div class="waiting-list-box">
           <h3>Waiting list</h3>
@@ -80,19 +70,73 @@
         </div>
       </section>
 
-      <!-- DISPLAY MODE (waiting area TV) -->
+      <!-- DISPLAY -->
       <section id="mode-display" class="mode-panel">
         <div class="display-screen">
           <div class="display-label">NOW SERVING</div>
           <div class="display-number" id="dCurrent">—</div>
+          <div class="display-cashier" id="dCashier"></div>
           <div class="display-sub">Please wait for your number</div>
           <div class="display-waiting">Waiting: <span id="dWaiting">0</span></div>
         </div>
       </section>
 
-      <!-- ADMIN MODE -->
+      <!-- MANAGER OVERVIEW -->
+      <section id="mode-manager" class="mode-panel">
+        <h2 class="section-title">Live service overview</h2>
+        <div class="stats-row" id="mgrStats">
+          <div class="stat"><div class="stat-value" id="mWaiting">0</div><div class="stat-label">Total waiting</div></div>
+          <div class="stat"><div class="stat-value" id="mServing">0</div><div class="stat-label">Cashiers busy</div></div>
+          <div class="stat"><div class="stat-value" id="mIdle">0</div><div class="stat-label">Cashiers idle</div></div>
+          <div class="stat"><div class="stat-value" id="mEnabled">0</div><div class="stat-label">Cashiers open</div></div>
+        </div>
+        <div class="admin-grid">
+          <div class="card">
+            <h3>Busy cashiers</h3>
+            <div id="mgrBusy" class="cashier-list"></div>
+          </div>
+          <div class="card">
+            <h3>Idle cashiers (not calling)</h3>
+            <div id="mgrIdle" class="cashier-list"></div>
+          </div>
+          <div class="card full">
+            <h3>Queues</h3>
+            <div id="mgrQueues" class="cashier-list"></div>
+          </div>
+          <div class="card full">
+            <h3>Recent activity</h3>
+            <div id="mgrHistory" class="history"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ADMIN -->
       <section id="mode-admin" class="mode-panel">
         <div class="admin-grid">
+          <div class="card">
+            <h3>Cashiers / counters</h3>
+            <p class="muted">Configure names used on the calling desk and display.</p>
+            <div id="cashierAdminList"></div>
+            <button id="btnAddCashier" class="btn-med btn-green" type="button">+ Add cashier</button>
+            <button id="btnSaveCashiers" class="btn-med btn-blue" type="button">Save cashiers</button>
+          </div>
+
+          <div class="card">
+            <h3>Theme / colors</h3>
+            <div class="color-grid">
+              <label>Background <input type="color" id="theme_bg" /></label>
+              <label>Cards <input type="color" id="theme_card" /></label>
+              <label>Text <input type="color" id="theme_text" /></label>
+              <label>Muted <input type="color" id="theme_muted" /></label>
+              <label>Accent <input type="color" id="theme_accent" /></label>
+              <label>Success <input type="color" id="theme_success" /></label>
+              <label>Warning <input type="color" id="theme_warning" /></label>
+              <label>Danger <input type="color" id="theme_danger" /></label>
+            </div>
+            <button id="btnSaveTheme" class="btn-med btn-blue" type="button">Save theme</button>
+            <button id="btnResetTheme" class="btn-med" type="button">Reset defaults</button>
+          </div>
+
           <div class="card">
             <h3>Queue actions</h3>
             <button id="btnReset" class="btn-med btn-red">Reset current queue</button>
@@ -100,52 +144,44 @@
           </div>
 
           <div class="card">
-            <h3>Create new queue</h3>
-            <label>Queue ID (lowercase, no spaces)</label>
+            <h3>Create queue</h3>
+            <label>Queue ID</label>
             <input id="newQueueId" type="text" placeholder="vip" />
             <label>Display name</label>
             <input id="newQueueName" type="text" placeholder="VIP Counter" />
-            <label>Prefix (optional)</label>
+            <label>Prefix</label>
             <input id="newQueuePrefix" type="text" placeholder="V" />
             <button id="btnCreateQueue" class="btn-med btn-green">Create queue</button>
           </div>
 
           <div class="card">
             <h3>Printer & announcements</h3>
-            <label class="checkbox">
-              <input type="checkbox" id="printerEnabled" /> Enable printer integration
-            </label>
+            <label class="checkbox"><input type="checkbox" id="printerEnabled" /> Enable printer integration</label>
             <label>Printer name / entity</label>
-            <input id="printerName" type="text" placeholder="e.g. printer.receipt or IPP name" />
-            <label class="checkbox">
-              <input type="checkbox" id="announceEnabled" /> Enable voice announcement
-            </label>
+            <input id="printerName" type="text" placeholder="printer.receipt" />
+            <label class="checkbox"><input type="checkbox" id="announceEnabled" /> Enable voice announcement</label>
             <label>Media player entity</label>
-            <input id="announceEntity" type="text" placeholder="media_player.reception_speaker" />
+            <input id="announceEntity" type="text" placeholder="media_player.reception" />
             <button id="btnSaveSettings" class="btn-med btn-blue">Save settings</button>
-            <p class="muted">Printer: use with an IPP / CUPS integration or automation on <code>queue_management_ticket_issued</code>. Announcement uses TTS on the selected media player.</p>
           </div>
 
           <div class="card full">
-            <h3>Recent history</h3>
+            <h3>History</h3>
             <div id="historyList" class="history"></div>
           </div>
         </div>
       </section>
     </main>
 
-    
-    <!-- Kiosk floating controls (visible when topbar hidden) -->
     <button type="button" id="fabMenu" class="fab" title="Switch mode">☰</button>
     <div id="fabModes" class="fab-modes">
       <button type="button" class="mode-btn" data-mode="reception">Reception</button>
       <button type="button" class="mode-btn" data-mode="calling">Calling</button>
       <button type="button" class="mode-btn" data-mode="display">Display</button>
+      <button type="button" class="mode-btn" data-mode="manager">Manager</button>
       <button type="button" class="mode-btn" data-mode="admin">Admin</button>
     </div>
-
     <div id="toast" class="toast" hidden></div>
-
   </div>
   <script src="/queue_management/static/app.js"></script>
 </body>

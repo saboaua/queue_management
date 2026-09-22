@@ -32,6 +32,8 @@ def _state_payload(hass: HomeAssistant, manager: QueueManager) -> dict[str, Any]
                 "prefix": q.prefix,
                 "current": q.current,
                 "current_display": q.format_ticket(q.current) if q.current else "—",
+                "current_cashier_id": q.current_cashier_id,
+                "current_cashier_name": q.current_cashier_name,
                 "last_issued": q.last_issued,
                 "last_issued_display": (
                     q.format_ticket(q.last_issued) if q.last_issued else "—"
@@ -43,10 +45,17 @@ def _state_payload(hass: HomeAssistant, manager: QueueManager) -> dict[str, Any]
                 "start_number": q.start_number,
             }
         )
+
     entry = next(iter(hass.config_entries.async_entries(DOMAIN)), None)
     options = dict(entry.options) if entry else {}
+
+    cashiers = [c.to_dict() for c in manager.cashiers.values()]
+
     return {
         "queues": queues_data,
+        "cashiers": cashiers,
+        "theme": manager.theme,
+        "overview": manager.overview(),
         "history": manager.history[-50:],
         "settings": {
             "printer_enabled": options.get("printer_enabled", False),
@@ -62,34 +71,31 @@ async def _handle_action(
 ) -> web.Response:
     action = data.get("action")
     queue_id = data.get("queue_id") or "main"
+    cashier_id = data.get("cashier_id")
+
     try:
         if action == "take_ticket":
             result = await manager.async_take_ticket(queue_id)
             return web.json_response({"ok": True, "result": result})
+
         if action == "call_next":
-            result = await manager.async_call_next(queue_id)
+            result = await manager.async_call_next(queue_id, cashier_id=cashier_id)
             return web.json_response({"ok": True, "result": result})
+
         if action == "call_ticket":
-            result = await manager.async_call_ticket(int(data["ticket"]), queue_id)
+            result = await manager.async_call_ticket(
+                int(data["ticket"]), queue_id, cashier_id=cashier_id
+            )
             return web.json_response({"ok": True, "result": result})
+
+        if action == "complete":
+            await manager.async_complete(queue_id, cashier_id=cashier_id)
+            return web.json_response({"ok": True})
+
         if action == "reset":
             await manager.async_reset_queue(queue_id)
             return web.json_response({"ok": True})
-        if action == "complete":
-            q = manager.get_queue(queue_id)
-            if q and q.current:
-                manager.add_history(
-                    {
-                        "type": "completed",
-                        "queue_id": q.queue_id,
-                        "ticket": q.current,
-                        "ticket_display": q.format_ticket(q.current),
-                    }
-                )
-                q.current = 0
-                await manager.async_save()
-                manager._notify()
-            return web.json_response({"ok": True})
+
         if action == "create_queue":
             await manager.async_create_queue(
                 queue_id=data["new_queue_id"],
@@ -98,14 +104,21 @@ async def _handle_action(
                 start_number=int(data.get("start_number", 1)),
             )
             return web.json_response({"ok": True})
+
+        if action == "save_cashiers":
+            await manager.async_save_cashiers(data.get("cashiers") or [])
+            return web.json_response({"ok": True})
+
+        if action == "save_theme":
+            await manager.async_save_theme(data.get("theme") or {})
+            return web.json_response({"ok": True})
+
         return web.json_response({"error": f"Unknown action: {action}"}, status=400)
     except (ValueError, KeyError, TypeError) as err:
         return web.json_response({"error": str(err)}, status=400)
 
 
 class QueueStateView(HomeAssistantView):
-    """Queue state – no auth (local network UI)."""
-
     url = "/api/queue_management/state"
     name = "api:queue_management:state"
     requires_auth = False
@@ -118,13 +131,11 @@ class QueueStateView(HomeAssistantView):
         try:
             return self.json(_state_payload(hass, manager))
         except Exception as err:
-            _LOGGER.exception("state payload failed")
+            _LOGGER.exception("state failed")
             return self.json({"error": str(err)}, status_code=500)
 
 
 class QueueActionView(HomeAssistantView):
-    """Queue actions – no auth (local network UI)."""
-
     url = "/api/queue_management/action"
     name = "api:queue_management:action"
     requires_auth = False
@@ -173,43 +184,25 @@ class QueueSettingsView(HomeAssistantView):
 
 
 async def async_setup_http(hass: HomeAssistant) -> None:
-    """Register API views and static UI files."""
     for view in (QueueStateView(), QueueActionView(), QueueSettingsView()):
         try:
             hass.http.register_view(view)
         except Exception as err:
             _LOGGER.error("Failed to register %s: %s", getattr(view, "name", view), err)
 
-    static_ok = False
     try:
         from homeassistant.components.http import StaticPathConfig
 
         await hass.http.async_register_static_paths(
-            [
-                StaticPathConfig(
-                    "/queue_management/static",
-                    str(FRONTEND_PATH),
-                    False,
-                )
-            ]
+            [StaticPathConfig("/queue_management/static", str(FRONTEND_PATH), False)]
         )
-        static_ok = True
     except Exception as err:
-        _LOGGER.warning("async_register_static_paths failed: %s", err)
+        _LOGGER.warning("static paths: %s", err)
         try:
             hass.http.register_static_path(
-                "/queue_management/static",
-                str(FRONTEND_PATH),
-                cache_headers=False,
+                "/queue_management/static", str(FRONTEND_PATH), cache_headers=False
             )
-            static_ok = True
         except Exception as err2:
-            _LOGGER.error("register_static_path failed: %s", err2)
+            _LOGGER.error("static path failed: %s", err2)
 
-    if static_ok:
-        _LOGGER.info(
-            "Queue Management UI: /queue_management/static/index.html | "
-            "API: /api/queue_management/state"
-        )
-    else:
-        _LOGGER.error("Static UI not registered – check frontend/ folder exists")
+    _LOGGER.info("Queue UI: /queue_management/static/index.html")
