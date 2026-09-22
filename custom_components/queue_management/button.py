@@ -48,7 +48,6 @@ class QueueBaseButton(ButtonEntity):
             name=manager.queues[queue_id].name,
             manufacturer="Queue Management",
             model="Virtual Queue",
-            via_device=(DOMAIN, "system"),
         )
 
     @property

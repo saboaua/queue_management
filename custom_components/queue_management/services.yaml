@@ -4,7 +4,7 @@ take_ticket:
   fields:
     queue_id:
       name: Queue ID
-      description: ID of the queue (default: main).
+      description: "ID of the queue (default: main)."
       example: main
       selector:
         text:
@@ -15,7 +15,7 @@ call_next:
   fields:
     queue_id:
       name: Queue ID
-      description: ID of the queue (default: main).
+      description: "ID of the queue (default: main)."
       example: main
       selector:
         text:
@@ -26,7 +26,7 @@ call_ticket:
   fields:
     queue_id:
       name: Queue ID
-      description: ID of the queue (default: main).
+      description: "ID of the queue (default: main)."
       example: main
       selector:
         text:
@@ -46,7 +46,7 @@ reset_queue:
   fields:
     queue_id:
       name: Queue ID
-      description: ID of the queue (default: main).
+      description: "ID of the queue (default: main)."
       example: main
       selector:
         text:
@@ -70,13 +70,13 @@ create_queue:
         text:
     prefix:
       name: Prefix
-      description: Optional prefix for ticket numbers (e.g. A, VIP).
+      description: "Optional prefix for ticket numbers (e.g. A, VIP)."
       example: V
       selector:
         text:
     start_number:
       name: Start number
-      description: First ticket number (default 1).
+      description: "First ticket number (default 1)."
       example: 1
       default: 1
       selector:

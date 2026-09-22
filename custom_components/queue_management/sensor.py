@@ -64,7 +64,7 @@ class AccessLinksSensor(SensorEntity):
 
     @property
     def native_value(self) -> str:
-        return "Ready – create dashboards once (see attributes)"
+        return "Open sidebar → Queue Management"
 
     @property
     def extra_state_attributes(self) -> dict:
@@ -106,7 +106,6 @@ class QueueBaseSensor(SensorEntity):
             name=q.name,
             manufacturer="Queue Management",
             model="Virtual Queue",
-            via_device=(DOMAIN, "system"),
         )
 
     @property
