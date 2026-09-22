@@ -7,7 +7,7 @@ from pathlib import Path
 
 from aiohttp import web
 from homeassistant.components.http import HomeAssistantView, StaticPathConfig
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
 from .queue import QueueManager
@@ -15,6 +15,10 @@ from .queue import QueueManager
 _LOGGER = logging.getLogger(__name__)
 
 FRONTEND_PATH = Path(__file__).parent / "frontend"
+
+
+def _manager(hass: HomeAssistant) -> QueueManager | None:
+    return hass.data.get(DOMAIN)
 
 
 class QueueStateView(HomeAssistantView):
@@ -26,9 +30,9 @@ class QueueStateView(HomeAssistantView):
 
     async def get(self, request: web.Request) -> web.Response:
         hass: HomeAssistant = request.app["hass"]
-        manager: QueueManager = hass.data.get(DOMAIN)
+        manager = _manager(hass)
         if not manager:
-            return self.json_message("Integration not loaded", status_code=503)
+            return self.json({"error": "Integration not loaded"}, status_code=503)
 
         queues_data = []
         for q in manager.queues.values():
@@ -63,7 +67,6 @@ class QueueStateView(HomeAssistantView):
                     "printer_name": options.get("printer_name", ""),
                     "announce_enabled": options.get("announce_enabled", False),
                     "announce_entity": options.get("announce_entity", ""),
-                    "ticket_prefix_default": options.get("ticket_prefix_default", ""),
                 },
             }
         )
@@ -78,14 +81,14 @@ class QueueActionView(HomeAssistantView):
 
     async def post(self, request: web.Request) -> web.Response:
         hass: HomeAssistant = request.app["hass"]
-        manager: QueueManager = hass.data.get(DOMAIN)
+        manager = _manager(hass)
         if not manager:
-            return self.json_message("Integration not loaded", status_code=503)
+            return self.json({"error": "Integration not loaded"}, status_code=503)
 
         try:
             data = await request.json()
         except Exception:
-            return self.json_message("Invalid JSON", status_code=400)
+            return self.json({"error": "Invalid JSON"}, status_code=400)
 
         action = data.get("action")
         queue_id = data.get("queue_id") or "main"
@@ -133,10 +136,10 @@ class QueueActionView(HomeAssistantView):
                 )
                 return self.json({"ok": True})
 
-            return self.json_message(f"Unknown action: {action}", status_code=400)
+            return self.json({"error": f"Unknown action: {action}"}, status_code=400)
 
         except (ValueError, KeyError, TypeError) as err:
-            return self.json_message(str(err), status_code=400)
+            return self.json({"error": str(err)}, status_code=400)
 
 
 class QueueSettingsView(HomeAssistantView):
@@ -150,12 +153,12 @@ class QueueSettingsView(HomeAssistantView):
         hass: HomeAssistant = request.app["hass"]
         entry = next(iter(hass.config_entries.async_entries(DOMAIN)), None)
         if not entry:
-            return self.json_message("No config entry", status_code=404)
+            return self.json({"error": "No config entry"}, status_code=404)
 
         try:
             data = await request.json()
         except Exception:
-            return self.json_message("Invalid JSON", status_code=400)
+            return self.json({"error": "Invalid JSON"}, status_code=400)
 
         new_options = dict(entry.options)
         for key in (
@@ -163,7 +166,6 @@ class QueueSettingsView(HomeAssistantView):
             "printer_name",
             "announce_enabled",
             "announce_entity",
-            "ticket_prefix_default",
         ):
             if key in data:
                 new_options[key] = data[key]
@@ -172,35 +174,42 @@ class QueueSettingsView(HomeAssistantView):
         return self.json({"ok": True, "settings": new_options})
 
 
-@callback
-def async_setup_http(hass: HomeAssistant) -> None:
-    """Register HTTP views and static frontend."""
+async def async_setup_http(hass: HomeAssistant) -> None:
+    """Register HTTP views and static frontend (must be awaited)."""
     hass.http.register_view(QueueStateView())
     hass.http.register_view(QueueActionView())
     hass.http.register_view(QueueSettingsView())
 
-    # Serve frontend SPA (compatible with HA 2024+)
-    async def _register_static(_event=None):
-        try:
-            await hass.http.async_register_static_paths(
-                [
-                    StaticPathConfig(
-                        "/queue_management/static",
-                        str(FRONTEND_PATH),
-                        cache_headers=False,
-                    )
-                ]
-            )
-            _LOGGER.debug("Queue Management static path registered")
-        except Exception as err:
-            # Fallback for older HA
-            try:
-                hass.http.register_static_path(
-                    "/queue_management/static",
-                    str(FRONTEND_PATH),
+    try:
+        await hass.http.async_register_static_paths(
+            [
+                StaticPathConfig(
+                    url_path="/queue_management/static",
+                    path=str(FRONTEND_PATH),
                     cache_headers=False,
                 )
-            except Exception:
-                _LOGGER.warning("Could not register static path: %s", err)
+            ]
+        )
+    except TypeError:
+        # Older HA signature
+        await hass.http.async_register_static_paths(
+            [
+                StaticPathConfig(
+                    "/queue_management/static",
+                    str(FRONTEND_PATH),
+                    False,
+                )
+            ]
+        )
+    except Exception as err:
+        _LOGGER.warning("Static path registration issue: %s – trying legacy", err)
+        try:
+            hass.http.register_static_path(
+                "/queue_management/static",
+                str(FRONTEND_PATH),
+                cache_headers=False,
+            )
+        except Exception as err2:
+            _LOGGER.error("Could not register frontend static path: %s", err2)
 
-    hass.async_create_task(_register_static())
+    _LOGGER.info("Queue Management API + frontend registered")

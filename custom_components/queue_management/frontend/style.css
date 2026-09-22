@@ -261,3 +261,60 @@ main { flex: 1; padding: 20px 16px 40px; max-width: 900px; margin: 0 auto; width
   .btn-huge { font-size: 1.4rem; padding: 22px 16px; }
 }
 EOF
+
+/* Kiosk mode – hide top bar */
+#app.kiosk .topbar {
+  display: none;
+}
+#app.kiosk .fab {
+  display: flex;
+}
+#app:not(.kiosk) .fab,
+#app:not(.kiosk) .fab-modes {
+  display: none !important;
+}
+
+.fab {
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: var(--blue);
+  color: white;
+  font-size: 1.4rem;
+  cursor: pointer;
+  z-index: 90;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+.fab-modes {
+  display: none;
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 90;
+}
+#app.show-menu .fab-modes {
+  display: flex;
+}
+.fab-modes .mode-btn {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.fab-modes .mode-btn:hover {
+  background: var(--blue);
+  color: white;
+}

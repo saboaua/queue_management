@@ -4,20 +4,23 @@
 
   let state = { queues: [], history: [], settings: {} };
   let currentQueueId = "main";
-  let lastTicketShown = null;
+  let currentMode = "reception";
 
   // ---------- API ----------
   async function api(path, options = {}) {
     const res = await fetch(`/api/queue_management/${path}`, {
-      credentials: "same-origin",
+      credentials: "include",
       headers: { "Content-Type": "application/json", ...(options.headers || {}) },
       ...options,
     });
+    const body = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || res.statusText || "Request failed");
+      const msg = body.error || body.message || `${res.status} ${res.statusText}`;
+      const err = new Error(msg);
+      err.status = res.status;
+      throw err;
     }
-    return res.json();
+    return body;
   }
 
   async function loadState() {
@@ -27,9 +30,18 @@
         currentQueueId = state.queues[0]?.queue_id || "main";
       }
       render();
+      hideToast();
     } catch (e) {
-      toast("Cannot load queue data. Are you logged in?", true);
       console.error(e);
+      if (e.status === 401 || e.status === 403) {
+        toast("Session expired – open Home Assistant and log in, then refresh this page.", true);
+      } else if (e.status === 503) {
+        toast("Integration not ready – restart Home Assistant.", true);
+      } else if (e.status === 404) {
+        toast("API not found – reinstall/update the integration and restart.", true);
+      } else {
+        toast(e.message || "Cannot load queue data", true);
+      }
     }
   }
 
@@ -54,15 +66,36 @@
     el.classList.toggle("error", isError);
     el.hidden = false;
     clearTimeout(el._t);
-    el._t = setTimeout(() => (el.hidden = true), 3200);
+    if (!isError) {
+      el._t = setTimeout(() => (el.hidden = true), 3200);
+    }
+  }
+  function hideToast() {
+    const el = $("#toast");
+    el.hidden = true;
   }
 
   function q() {
     return state.queues.find((x) => x.queue_id === currentQueueId) || state.queues[0] || {};
   }
 
+  function setMode(mode) {
+    currentMode = mode;
+    $$(".mode-btn").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
+    $$(".mode-panel").forEach((p) => p.classList.remove("active"));
+    const panel = $(`#mode-${mode}`);
+    if (panel) panel.classList.add("active");
+
+    // Kiosk: hide top bar on Reception / Calling / Display
+    const app = $("#app");
+    if (mode === "admin") {
+      app.classList.remove("kiosk");
+    } else {
+      app.classList.add("kiosk");
+    }
+  }
+
   function render() {
-    // Queue selector
     const sel = $("#queueSelect");
     const prev = currentQueueId;
     sel.innerHTML = state.queues
@@ -75,11 +108,9 @@
 
     const queue = q();
 
-    // Reception
     $("#rWaiting").textContent = queue.waiting_count ?? 0;
     $("#rCurrent").textContent = queue.current_display || "—";
 
-    // Calling
     $("#cCurrent").textContent = queue.current_display || "—";
     $("#cWaiting").textContent = queue.waiting_count ?? 0;
     $("#cLast").textContent = queue.last_issued_display || "—";
@@ -87,13 +118,13 @@
 
     const ul = $("#waitingList");
     ul.innerHTML = "";
-    (queue.waiting_display || []).forEach((t) => {
+    (queue.waiting_display || []).forEach((t, idx) => {
       const li = document.createElement("li");
       li.textContent = t;
       li.title = "Click to call this ticket";
       li.style.cursor = "pointer";
       li.onclick = () => {
-        const raw = queue.waiting[queue.waiting_display.indexOf(t)];
+        const raw = queue.waiting[idx];
         doAction("call_ticket", { ticket: raw }).then(() => toast(`Called ${t}`));
       };
       ul.appendChild(li);
@@ -102,18 +133,15 @@
       ul.innerHTML = "<li style='opacity:0.5'>No one waiting</li>";
     }
 
-    // Display
     $("#dCurrent").textContent = queue.current_display || "—";
     $("#dWaiting").textContent = queue.waiting_count ?? 0;
 
-    // Admin settings
     const s = state.settings || {};
     $("#printerEnabled").checked = !!s.printer_enabled;
     $("#printerName").value = s.printer_name || "";
     $("#announceEnabled").checked = !!s.announce_enabled;
     $("#announceEntity").value = s.announce_entity || "";
 
-    // History
     const hist = $("#historyList");
     hist.innerHTML = (state.history || [])
       .slice()
@@ -135,46 +163,39 @@
       .join("") || "<div class='muted'>No history yet</div>";
   }
 
-  // ---------- Mode switching ----------
+  // Mode buttons
   $$(".mode-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      $$(".mode-btn").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      $$(".mode-panel").forEach((p) => p.classList.remove("active"));
-      $(`#mode-${btn.dataset.mode}`).classList.add("active");
+      setMode(btn.dataset.mode);
+      $("#app").classList.remove("show-menu");
     });
   });
 
+  // Floating menu to switch mode when topbar is hidden
+  $("#fabMenu")?.addEventListener("click", () => {
+    $("#app").classList.toggle("show-menu");
+  });
+  $("#fabAdmin")?.addEventListener("click", () => setMode("admin"));
+
   $("#queueSelect").addEventListener("change", (e) => {
     currentQueueId = e.target.value;
-    lastTicketShown = null;
     $("#ticketResult").hidden = true;
     render();
   });
 
-  // ---------- Actions ----------
   $("#btnTake").addEventListener("click", async () => {
     const res = await doAction("take_ticket");
     if (res?.result) {
-      lastTicketShown = res.result.ticket_display;
-      $("#ticketNumber").textContent = lastTicketShown;
+      $("#ticketNumber").textContent = res.result.ticket_display;
       $("#ticketResult").hidden = false;
-      toast(`Ticket ${lastTicketShown} issued`);
-      // Optional: trigger browser print of a simple ticket
-      if (state.settings?.printer_enabled) {
-        // User can also automate via HA event; here we offer a simple print dialog
-        // window.print() could be used with a print stylesheet if desired
-      }
+      toast(`Ticket ${res.result.ticket_display} issued`);
     }
   });
 
   $("#btnCallNext").addEventListener("click", async () => {
     const res = await doAction("call_next");
-    if (res?.result) {
-      toast(`Now serving ${res.result.ticket_display}`);
-    } else {
-      toast("No tickets waiting", true);
-    }
+    if (res?.result) toast(`Now serving ${res.result.ticket_display}`);
+    else toast("No tickets waiting", true);
   });
 
   $("#btnComplete").addEventListener("click", async () => {
@@ -193,11 +214,7 @@
     const name = $("#newQueueName").value.trim() || id;
     const prefix = $("#newQueuePrefix").value.trim();
     if (!id) return toast("Enter a queue ID", true);
-    await doAction("create_queue", {
-      new_queue_id: id,
-      name,
-      prefix,
-    });
+    await doAction("create_queue", { new_queue_id: id, name, prefix });
     toast(`Queue "${name}" created`);
     $("#newQueueId").value = "";
     $("#newQueueName").value = "";
@@ -222,8 +239,8 @@
     }
   });
 
-  // Auto refresh every 3s so multiple devices stay in sync
+  // Start in reception (kiosk)
+  setMode("reception");
   loadState();
   setInterval(loadState, 3000);
 })();
-EOF

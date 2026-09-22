@@ -51,7 +51,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN] = manager
 
     # HTTP API + static frontend
-    async_setup_http(hass)
+    await async_setup_http(hass)
 
     # Sidebar panel – opens the full Queue Management UI (no Lovelace needed)
     try:

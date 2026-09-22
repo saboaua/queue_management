@@ -134,7 +134,18 @@
       </section>
     </main>
 
+    
+    <!-- Kiosk floating controls (visible when topbar hidden) -->
+    <button type="button" id="fabMenu" class="fab" title="Switch mode">☰</button>
+    <div id="fabModes" class="fab-modes">
+      <button type="button" class="mode-btn" data-mode="reception">Reception</button>
+      <button type="button" class="mode-btn" data-mode="calling">Calling</button>
+      <button type="button" class="mode-btn" data-mode="display">Display</button>
+      <button type="button" class="mode-btn" data-mode="admin">Admin</button>
+    </div>
+
     <div id="toast" class="toast" hidden></div>
+
   </div>
   <script src="app.js"></script>
 </body>
