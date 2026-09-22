@@ -72,7 +72,10 @@
   async function api(path, options = {}) {
     if (!authToken) loadAuthToken();
 
-    const res = await fetch(`/api/queue_management/${path}`, {
+    // Panel UI uses /api/queue_management/panel/* with secret
+    // (QM_API_BASE is injected by the authenticated UI view)
+    const base = window.QM_API_BASE || "/api/queue_management/panel";
+    const res = await fetch(`${base}/${path}`, {
       credentials: "same-origin",
       headers: { ...authHeaders(), ...(options.headers || {}) },
       ...options,
