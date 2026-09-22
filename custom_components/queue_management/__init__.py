@@ -41,7 +41,7 @@ PANEL_ICON = "mdi:ticket-confirmation"
 PANEL_TITLE = "Queue Management"
 PANEL_URL_PATH = "queue-management"
 # Served by QueueIndexView (requires_auth=False) – never 401
-PANEL_IFRAME_URL = "/queue_management/"
+PANEL_IFRAME_URL = "/queue_management/static/index.html"
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:

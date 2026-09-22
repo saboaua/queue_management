@@ -1,4 +1,4 @@
-"""HTTP API and UI for Queue Management (no login required for local UI)."""
+"""HTTP API and static frontend for Queue Management."""
 
 from __future__ import annotations
 
@@ -103,27 +103,9 @@ async def _handle_action(
         return web.json_response({"error": str(err)}, status=400)
 
 
-class QueueIndexView(HomeAssistantView):
-    """Serve the queue UI HTML – open, no login (fixes sidebar 401)."""
-
-    url = "/queue_management"
-    name = "queue_management:index"
-    requires_auth = False
-    extra_urls = ["/queue_management/"]
-
-    async def get(self, request: web.Request) -> web.Response:
-        index = FRONTEND_PATH / "index.html"
-        try:
-            html = index.read_text(encoding="utf-8")
-        except OSError as err:
-            return web.Response(text=f"UI missing: {err}", status=500)
-        # Ensure absolute asset paths so iframe root URL works
-        html = html.replace('href="style.css"', 'href="/queue_management/static/style.css"')
-        html = html.replace('src="app.js"', 'src="/queue_management/static/app.js"')
-        return web.Response(text=html, content_type="text/html; charset=utf-8")
-
-
 class QueueStateView(HomeAssistantView):
+    """Queue state – no auth (local network UI)."""
+
     url = "/api/queue_management/state"
     name = "api:queue_management:state"
     requires_auth = False
@@ -133,10 +115,16 @@ class QueueStateView(HomeAssistantView):
         manager = _manager(hass)
         if not manager:
             return self.json({"error": "Integration not loaded"}, status_code=503)
-        return self.json(_state_payload(hass, manager))
+        try:
+            return self.json(_state_payload(hass, manager))
+        except Exception as err:
+            _LOGGER.exception("state payload failed")
+            return self.json({"error": str(err)}, status_code=500)
 
 
 class QueueActionView(HomeAssistantView):
+    """Queue actions – no auth (local network UI)."""
+
     url = "/api/queue_management/action"
     name = "api:queue_management:action"
     requires_auth = False
@@ -150,7 +138,11 @@ class QueueActionView(HomeAssistantView):
             data = await request.json()
         except Exception:
             return self.json({"error": "Invalid JSON"}, status_code=400)
-        return await _handle_action(hass, manager, data)
+        try:
+            return await _handle_action(hass, manager, data)
+        except Exception as err:
+            _LOGGER.exception("action failed")
+            return self.json({"error": str(err)}, status_code=500)
 
 
 class QueueSettingsView(HomeAssistantView):
@@ -181,31 +173,43 @@ class QueueSettingsView(HomeAssistantView):
 
 
 async def async_setup_http(hass: HomeAssistant) -> None:
-    """Register open UI + API + static assets."""
-    for view in (
-        QueueIndexView(),
-        QueueStateView(),
-        QueueActionView(),
-        QueueSettingsView(),
-    ):
+    """Register API views and static UI files."""
+    for view in (QueueStateView(), QueueActionView(), QueueSettingsView()):
         try:
             hass.http.register_view(view)
         except Exception as err:
-            _LOGGER.error("Failed to register %s: %s", view.name, err)
+            _LOGGER.error("Failed to register %s: %s", getattr(view, "name", view), err)
 
+    static_ok = False
     try:
         from homeassistant.components.http import StaticPathConfig
 
         await hass.http.async_register_static_paths(
-            [StaticPathConfig("/queue_management/static", str(FRONTEND_PATH), False)]
+            [
+                StaticPathConfig(
+                    "/queue_management/static",
+                    str(FRONTEND_PATH),
+                    False,
+                )
+            ]
         )
+        static_ok = True
     except Exception as err:
-        _LOGGER.warning("Static path issue: %s", err)
+        _LOGGER.warning("async_register_static_paths failed: %s", err)
         try:
             hass.http.register_static_path(
-                "/queue_management/static", str(FRONTEND_PATH), cache_headers=False
+                "/queue_management/static",
+                str(FRONTEND_PATH),
+                cache_headers=False,
             )
+            static_ok = True
         except Exception as err2:
-            _LOGGER.error("Static path failed: %s", err2)
+            _LOGGER.error("register_static_path failed: %s", err2)
 
-    _LOGGER.info("Queue UI: /queue_management/  API: /api/queue_management/state")
+    if static_ok:
+        _LOGGER.info(
+            "Queue Management UI: /queue_management/static/index.html | "
+            "API: /api/queue_management/state"
+        )
+    else:
+        _LOGGER.error("Static UI not registered – check frontend/ folder exists")
