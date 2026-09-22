@@ -1,0 +1,29 @@
+# ============================================================
+# AUTOMATION: Announce ticket when called
+# ============================================================
+# Copy this into Settings → Automations → Create Automation
+# → three dots → Edit in YAML
+#
+# Requires a media_player entity that supports TTS
+# (e.g. Google Home, Nest Mini, Sonos, browser_mod, etc.)
+# ============================================================
+
+alias: "Queue – Announce next ticket"
+description: "Speak the ticket number when it is called"
+mode: single
+trigger:
+  - platform: event
+    event_type: queue_management_ticket_called
+condition: []
+action:
+  - service: tts.speak
+    data:
+      media_player_entity_id: media_player.YOUR_SPEAKER   # ← change this
+      message: >
+        Ticket number {{ trigger.event.data.ticket_display }},
+        please proceed to the counter.
+  # Optional: also send a notification
+  - service: notify.persistent_notification
+    data:
+      title: "Now Serving"
+      message: "Ticket {{ trigger.event.data.ticket_display }}"

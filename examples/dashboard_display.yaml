@@ -1,0 +1,61 @@
+# ============================================================
+# PUBLIC DISPLAY / WAITING AREA SCREEN
+# ============================================================
+# Large screen or TV in the waiting area that only shows
+# the current number being served.
+#
+# Access:
+#   http://YOUR-HA-IP:8123/lovelace/display
+# ============================================================
+
+title: Waiting Area Display
+views:
+  - title: Now Serving
+    path: now
+    panel: true
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |
+              # NOW SERVING
+            card_mod:
+              style: |
+                ha-card {
+                  text-align: center;
+                  background: #1a365d;
+                  color: white;
+                  font-size: 2.5em;
+                  border: none;
+                  box-shadow: none;
+                }
+
+          - type: entity
+            entity: sensor.main_queue_current_serving
+            name: " "
+            icon: none
+            card_mod:
+              style: |
+                ha-card {
+                  text-align: center;
+                  font-size: 12em;
+                  font-weight: 900;
+                  padding: 60px;
+                  background: #ebf8ff;
+                  color: #2b6cb0;
+                  border: none;
+                  box-shadow: none;
+                }
+
+          - type: markdown
+            content: |
+              Please wait for your number to be called
+            card_mod:
+              style: |
+                ha-card {
+                  text-align: center;
+                  font-size: 1.8em;
+                  color: #4a5568;
+                  border: none;
+                  box-shadow: none;
+                }

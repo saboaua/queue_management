@@ -1,0 +1,102 @@
+# ============================================================
+# CALLING DESK / COUNTER DASHBOARD
+# ============================================================
+# How to use:
+# 1. Go to Settings → Dashboards → Add Dashboard
+# 2. Create a new dashboard named "Calling" (url path: calling)
+# 3. Edit → Raw configuration editor → paste this YAML
+# 4. Save
+#
+# Access on tablet / computer at the counter:
+#   http://YOUR-HA-IP:8123/lovelace/calling
+#   or
+#   http://homeassistant.local:8123/lovelace/calling
+# ============================================================
+
+title: Calling Desk
+views:
+  - title: Call Next
+    path: call
+    icon: mdi:bell-ring
+    cards:
+      # NOW SERVING - large display
+      - type: markdown
+        content: |
+          ## NOW SERVING
+        card_mod:
+          style: |
+            ha-card {
+              text-align: center;
+              background: #2b6cb0;
+              color: white;
+              font-size: 1.6em;
+              padding: 8px;
+            }
+
+      - type: entity
+        entity: sensor.main_queue_current_serving
+        name: " "
+        icon: mdi:account-voice
+        card_mod:
+          style: |
+            ha-card {
+              text-align: center;
+              font-size: 5em;
+              font-weight: bold;
+              padding: 40px 20px;
+              background: #ebf8ff;
+              color: #2b6cb0;
+            }
+
+      # CALL NEXT button
+      - type: button
+        name: CALL NEXT
+        icon: mdi:bell-ring-outline
+        entity: button.main_queue_call_next
+        show_state: false
+        tap_action:
+          action: call-service
+          service: queue_management.call_next
+          data:
+            queue_id: main
+        card_mod:
+          style: |
+            ha-card {
+              --mdc-icon-size: 64px;
+              font-size: 2em;
+              font-weight: bold;
+              height: 140px;
+              background: #dd6b20;
+              color: white;
+            }
+            ha-card:active {
+              background: #c05621;
+            }
+
+      # Queue overview
+      - type: glance
+        title: Queue Overview
+        columns: 3
+        entities:
+          - entity: sensor.main_queue_waiting
+            name: Waiting
+            icon: mdi:account-group
+          - entity: sensor.main_queue_last_ticket_issued
+            name: Last Issued
+            icon: mdi:ticket
+          - entity: sensor.main_queue_status
+            name: Status
+            icon: mdi:information-outline
+
+      # Waiting list (from attributes)
+      - type: markdown
+        title: Waiting Tickets
+        content: |
+          {% set waiting = state_attr('sensor.main_queue_waiting', 'waiting_tickets') %}
+          {% if waiting and waiting | length > 0 %}
+          {% for t in waiting %}
+          - **{{ t }}**
+          {% endfor %}
+          {% else %}
+          _No one is waiting_
+          {% endif %}

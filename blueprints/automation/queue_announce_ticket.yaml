@@ -1,0 +1,48 @@
+blueprint:
+  name: Queue Management – Announce Ticket
+  description: >
+    When a ticket is called, announce it via TTS on a media player
+    and optionally show a persistent notification.
+  domain: automation
+  input:
+    media_player:
+      name: Media Player / Speaker
+      description: The speaker that will announce the ticket number
+      selector:
+        entity:
+          domain: media_player
+    message_template:
+      name: Announcement message
+      description: Use {{ ticket }} for the ticket number
+      default: "Ticket number {{ ticket }}, please proceed to the counter."
+      selector:
+        text:
+          multiline: true
+    notify:
+      name: Show notification
+      description: Also create a persistent notification
+      default: true
+      selector:
+        boolean:
+
+trigger:
+  - platform: event
+    event_type: queue_management_ticket_called
+
+action:
+  - variables:
+      ticket: "{{ trigger.event.data.ticket_display }}"
+  - service: tts.speak
+    data:
+      media_player_entity_id: !input media_player
+      message: !input message_template
+  - if:
+      - condition: template
+        value_template: "{{ notify }}"
+    then:
+      - service: notify.persistent_notification
+        data:
+          title: "Now Serving"
+          message: "Ticket {{ ticket }}"
+
+mode: single
