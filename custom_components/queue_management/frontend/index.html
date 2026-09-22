@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Queue Management</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">🎫</span>
+        <span class="title">Queue Management</span>
+      </div>
+      <nav class="modes">
+        <button data-mode="reception" class="mode-btn active">Reception</button>
+        <button data-mode="calling" class="mode-btn">Calling Desk</button>
+        <button data-mode="display" class="mode-btn">Display</button>
+        <button data-mode="admin" class="mode-btn">Admin</button>
+      </nav>
+      <div class="queue-select-wrap">
+        <select id="queueSelect"></select>
+      </div>
+    </header>
+
+    <main>
+      <!-- RECEPTION MODE -->
+      <section id="mode-reception" class="mode-panel active">
+        <div class="hero">
+          <h1>Welcome</h1>
+          <p>Please take a number and wait to be called</p>
+        </div>
+        <button id="btnTake" class="btn-huge btn-green">TAKE TICKET</button>
+        <div class="ticket-result" id="ticketResult" hidden>
+          <div class="label">Your number</div>
+          <div class="number" id="ticketNumber">—</div>
+          <div class="hint">Please wait for your number to be called</div>
+        </div>
+        <div class="stats-row">
+          <div class="stat">
+            <div class="stat-value" id="rWaiting">0</div>
+            <div class="stat-label">Waiting</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="rCurrent">—</div>
+            <div class="stat-label">Now Serving</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CALLING DESK MODE -->
+      <section id="mode-calling" class="mode-panel">
+        <div class="now-serving-box">
+          <div class="label">NOW SERVING</div>
+          <div class="big-number" id="cCurrent">—</div>
+        </div>
+        <div class="action-row">
+          <button id="btnCallNext" class="btn-huge btn-orange">CALL NEXT</button>
+          <button id="btnComplete" class="btn-med btn-blue">Complete / Close</button>
+        </div>
+        <div class="stats-row">
+          <div class="stat">
+            <div class="stat-value" id="cWaiting">0</div>
+            <div class="stat-label">Waiting</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="cLast">—</div>
+            <div class="stat-label">Last Issued</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="cStatus">idle</div>
+            <div class="stat-label">Status</div>
+          </div>
+        </div>
+        <div class="waiting-list-box">
+          <h3>Waiting list</h3>
+          <ul id="waitingList"></ul>
+        </div>
+      </section>
+
+      <!-- DISPLAY MODE (waiting area TV) -->
+      <section id="mode-display" class="mode-panel">
+        <div class="display-screen">
+          <div class="display-label">NOW SERVING</div>
+          <div class="display-number" id="dCurrent">—</div>
+          <div class="display-sub">Please wait for your number</div>
+          <div class="display-waiting">Waiting: <span id="dWaiting">0</span></div>
+        </div>
+      </section>
+
+      <!-- ADMIN MODE -->
+      <section id="mode-admin" class="mode-panel">
+        <div class="admin-grid">
+          <div class="card">
+            <h3>Queue actions</h3>
+            <button id="btnReset" class="btn-med btn-red">Reset current queue</button>
+            <p class="muted">Clears waiting list and resets the counter.</p>
+          </div>
+
+          <div class="card">
+            <h3>Create new queue</h3>
+            <label>Queue ID (lowercase, no spaces)</label>
+            <input id="newQueueId" type="text" placeholder="vip" />
+            <label>Display name</label>
+            <input id="newQueueName" type="text" placeholder="VIP Counter" />
+            <label>Prefix (optional)</label>
+            <input id="newQueuePrefix" type="text" placeholder="V" />
+            <button id="btnCreateQueue" class="btn-med btn-green">Create queue</button>
+          </div>
+
+          <div class="card">
+            <h3>Printer & announcements</h3>
+            <label class="checkbox">
+              <input type="checkbox" id="printerEnabled" /> Enable printer integration
+            </label>
+            <label>Printer name / entity</label>
+            <input id="printerName" type="text" placeholder="e.g. printer.receipt or IPP name" />
+            <label class="checkbox">
+              <input type="checkbox" id="announceEnabled" /> Enable voice announcement
+            </label>
+            <label>Media player entity</label>
+            <input id="announceEntity" type="text" placeholder="media_player.reception_speaker" />
+            <button id="btnSaveSettings" class="btn-med btn-blue">Save settings</button>
+            <p class="muted">Printer: use with an IPP / CUPS integration or automation on <code>queue_management_ticket_issued</code>. Announcement uses TTS on the selected media player.</p>
+          </div>
+
+          <div class="card full">
+            <h3>Recent history</h3>
+            <div id="historyList" class="history"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" hidden></div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -25,6 +25,7 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 SIGNAL_UPDATE = f"{DOMAIN}_update"
+MAX_HISTORY = 200
 
 
 @dataclass
@@ -76,12 +77,13 @@ class Queue:
 
 
 class QueueManager:
-    """Manages all queues and persistence."""
+    """Manages all queues, history and persistence."""
 
     def __init__(self, hass: HomeAssistant) -> None:
         self.hass = hass
         self._store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
         self.queues: dict[str, Queue] = {}
+        self.history: list[dict[str, Any]] = []
         self._loaded = False
 
     async def async_load(self) -> None:
@@ -91,9 +93,9 @@ class QueueManager:
             for qdata in data["queues"]:
                 q = Queue.from_dict(qdata)
                 self.queues[q.queue_id] = q
+            self.history = list(data.get("history", []))[-MAX_HISTORY:]
             _LOGGER.debug("Loaded %d queues from storage", len(self.queues))
         else:
-            # Create default queue
             self.queues[DEFAULT_QUEUE_ID] = Queue(
                 queue_id=DEFAULT_QUEUE_ID,
                 name=DEFAULT_QUEUE_NAME,
@@ -103,9 +105,18 @@ class QueueManager:
         self._loaded = True
 
     async def async_save(self) -> None:
-        """Persist queues to storage."""
-        data = {"queues": [q.to_dict() for q in self.queues.values()]}
+        """Persist queues and history to storage."""
+        data = {
+            "queues": [q.to_dict() for q in self.queues.values()],
+            "history": self.history[-MAX_HISTORY:],
+        }
         await self._store.async_save(data)
+
+    def add_history(self, entry: dict[str, Any]) -> None:
+        entry.setdefault("timestamp", datetime.now(timezone.utc).isoformat())
+        self.history.append(entry)
+        if len(self.history) > MAX_HISTORY:
+            self.history = self.history[-MAX_HISTORY:]
 
     def get_queue(self, queue_id: str | None = None) -> Queue | None:
         qid = queue_id or DEFAULT_QUEUE_ID
@@ -153,9 +164,6 @@ class QueueManager:
         next_num = q.last_issued + 1
         q.last_issued = next_num
         q.waiting.append(next_num)
-        await self.async_save()
-        self._notify()
-
         ticket_str = q.format_ticket(next_num)
         event_data = {
             "queue_id": q.queue_id,
@@ -165,6 +173,9 @@ class QueueManager:
             "waiting_count": q.waiting_count,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
+        self.add_history({**event_data, "type": "issued"})
+        await self.async_save()
+        self._notify()
         self.hass.bus.async_fire(EVENT_TICKET_ISSUED, event_data)
         _LOGGER.info("Ticket %s issued on queue %s", ticket_str, q.queue_id)
         return event_data
@@ -180,9 +191,6 @@ class QueueManager:
 
         next_num = q.waiting.pop(0)
         q.current = next_num
-        await self.async_save()
-        self._notify()
-
         ticket_str = q.format_ticket(next_num)
         event_data = {
             "queue_id": q.queue_id,
@@ -192,6 +200,9 @@ class QueueManager:
             "waiting_count": q.waiting_count,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
+        self.add_history({**event_data, "type": "called"})
+        await self.async_save()
+        self._notify()
         self.hass.bus.async_fire(EVENT_TICKET_CALLED, event_data)
         _LOGGER.info("Called ticket %s on queue %s", ticket_str, q.queue_id)
         return event_data
@@ -206,9 +217,6 @@ class QueueManager:
         if ticket in q.waiting:
             q.waiting.remove(ticket)
         q.current = ticket
-        await self.async_save()
-        self._notify()
-
         ticket_str = q.format_ticket(ticket)
         event_data = {
             "queue_id": q.queue_id,
@@ -218,6 +226,9 @@ class QueueManager:
             "waiting_count": q.waiting_count,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
+        self.add_history({**event_data, "type": "called"})
+        await self.async_save()
+        self._notify()
         self.hass.bus.async_fire(EVENT_TICKET_CALLED, event_data)
         _LOGGER.info("Called specific ticket %s on queue %s", ticket_str, q.queue_id)
         return event_data
@@ -230,9 +241,15 @@ class QueueManager:
         q.last_issued = q.start_number - 1
         q.current = 0
         q.waiting.clear()
+        self.add_history(
+            {
+                "type": "reset",
+                "queue_id": q.queue_id,
+                "queue_name": q.name,
+            }
+        )
         await self.async_save()
         self._notify()
-
         self.hass.bus.async_fire(
             EVENT_QUEUE_RESET,
             {

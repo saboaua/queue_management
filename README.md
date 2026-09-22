@@ -1,24 +1,31 @@
 # Queue Management for Home Assistant
 
-Professional **queue / ticket management system** that runs entirely inside Home Assistant.  
-Perfect for reception desks, clinics, offices, shops, or any waiting-line scenario.
+Professional **queue / ticket system** that runs entirely inside Home Assistant.  
+No Lovelace cards required — it has its **own dedicated page** in the sidebar.
 
-Home Assistant acts as the **central server**.  
-Tablets and computers simply open browser dashboards – no extra software needed.
+Works on computers, tablets and TVs. Home Assistant is the server.
 
 ---
 
-## Important: Why the pages are not live right after install
+## Instant access (after install)
 
-Home Assistant custom integrations **cannot automatically create Lovelace dashboards**.  
-This is a platform limitation (not a bug).
+After you add the integration and restart:
 
-After installing the integration you will see:
+1. Look in the **Home Assistant sidebar**
+2. Click **Queue Management** 🎫
+3. Or open directly:  
+   `http://homeassistant.local:8123/queue-management`
 
-- Devices & entities (sensors + buttons)
-- A new sensor called **Access links** that shows the exact tablet URLs
+You get four modes in one page:
 
-You must create the three dashboards **once** (takes ~2 minutes). After that the links work forever.
+| Mode | Use on | What it does |
+|------|--------|----------------|
+| **Reception** | Reception tablet | Big “Take Ticket” button, shows the issued number |
+| **Calling Desk** | Counter / staff tablet | Call next, complete ticket, see waiting list |
+| **Display** | Waiting-area TV / tablet | Large “NOW SERVING” number |
+| **Admin** | Back-office | Reset, create queues, printer & announcement settings, history |
+
+All devices stay in sync automatically (refreshes every 3 seconds).
 
 ---
 
@@ -27,45 +34,34 @@ You must create the three dashboards **once** (takes ~2 minutes). After that the
 ```
 ┌─────────────────────┐       ┌──────────────────────┐       ┌─────────────────────┐
 │  RECEPTION TABLET   │       │   HOME ASSISTANT     │       │  CALLING DESK       │
-│                     │       │      (Server)        │       │                     │
-│  • Take Ticket      │◄─────►│  Queue Management    │◄─────►│  • Call Next        │
-│  • Show number      │       │  Stores all queues   │       │  • Now Serving      │
-│  • Waiting count    │       │  Fires events        │       │  • Announce (TTS)   │
+│  Mode: Reception    │◄─────►│  Queue Management    │◄─────►│  Mode: Calling Desk │
+│  Take Ticket        │       │  + Sidebar Panel     │       │  Call Next / Close  │
 └─────────────────────┘       └──────────────────────┘       └─────────────────────┘
          ▲                                                              │
-         │                                                              │
-         └────────────── WAITING AREA DISPLAY (TV / tablet) ────────────┘
-                         Shows large “NOW SERVING” number
+         │                     Mode: Display                            │
+         └────────────── WAITING AREA TV / TABLET ──────────────────────┘
 ```
 
-### Direct links (after you create the dashboards)
+**Recommended URLs for each device**
 
-| Station              | URL                                                    | Device          |
-|----------------------|--------------------------------------------------------|-----------------|
-| **Reception**        | `http://homeassistant.local:8123/lovelace/reception`   | Tablet / PC     |
-| **Calling Desk**     | `http://homeassistant.local:8123/lovelace/calling`     | Tablet / PC     |
-| **Waiting Area**     | `http://homeassistant.local:8123/lovelace/display`     | TV / tablet     |
+| Device | URL |
+|--------|-----|
+| Any (sidebar) | `http://YOUR-HA:8123/queue-management` |
+| Direct UI (fullscreen friendly) | `http://YOUR-HA:8123/queue_management/static/index.html` |
 
-Replace `homeassistant.local` with your Home Assistant IP if needed.
-
-The integration also creates a sensor:
-
-**`sensor.queue_management_access_links`**
-
-Open it → look at the **Attributes**. You will see the exact URLs for your installation plus a short howto.
+On tablets: open the link → browser menu → **Add to Home Screen** for an app-like experience.
 
 ---
 
 ## Installation
 
-### Via HACS (recommended)
+### HACS
 
-1. HACS → Integrations → ⋮ → **Custom repositories**
-2. Add: `https://github.com/saboaua/queue_management`  
-   Category: **Integration**
-3. Download **Queue Management**
-4. **Restart Home Assistant**
-5. Settings → Devices & Services → **Add Integration** → search **Queue Management** → Submit
+1. HACS → Integrations → ⋮ → Custom repositories  
+   Add: `https://github.com/saboaua/queue_management` (Integration)
+2. Download **Queue Management**
+3. Restart Home Assistant
+4. Settings → Devices & Services → Add Integration → **Queue Management**
 
 ### Manual
 
@@ -73,114 +69,90 @@ Copy `custom_components/queue_management` into `config/custom_components/` and r
 
 ---
 
-## One-time dashboard setup (required)
+## Features
 
-1. Go to **Settings → Dashboards → Add Dashboard**
-2. Create these three dashboards:
-
-   | Title          | URL path    |
-   |----------------|-------------|
-   | Reception      | `reception` |
-   | Calling        | `calling`   |
-   | Waiting Area   | `display`   |
-
-3. For each dashboard:
-   - Open it
-   - Click **⋮ → Raw configuration editor**
-   - Delete the existing content
-   - Paste the matching file from the `examples/` folder of this repository:
-     - `examples/dashboard_reception.yaml`
-     - `examples/dashboard_calling.yaml`
-     - `examples/dashboard_display.yaml`
-   - Save
-
-4. Open the URLs on your tablets (see table above).
-
-**Tip:** On tablets use “Add to Home Screen” so it opens almost fullscreen.
+- Own sidebar page (no Lovelace setup)
+- Multiple queues (main, VIP, counters…)
+- Ticket numbers with optional prefix
+- Call next / call specific / complete (close)
+- Full history of issued / called / completed tickets
+- Printer settings (works with IPP / automations on events)
+- Voice announcement settings (TTS media player)
+- Persistent storage (survives restarts)
+- Sensors & buttons still available for automations
+- Events: `queue_management_ticket_issued`, `_ticket_called`, `_queue_reset`
 
 ---
 
-## After install – what you should see
+## Printer configuration
 
-### Devices
+1. Open **Queue Management → Admin**
+2. Enable “Printer integration” and enter your printer name / entity
+3. Or create an automation on the event:
 
-- **Queue Management** (system device) → contains the **Access links** sensor
-- **Main Queue** → contains all sensors and buttons for the default queue
-
-### Entities (Main Queue)
-
-| Entity (typical ID)                     | Purpose                    |
-|-----------------------------------------|----------------------------|
-| `sensor.main_queue_current_serving`     | Number currently being served |
-| `sensor.main_queue_last_ticket_issued`  | Last ticket given out      |
-| `sensor.main_queue_waiting`             | How many people are waiting|
-| `sensor.main_queue_status`              | idle / active / serving    |
-| `button.main_queue_take_ticket`         | Issue next ticket          |
-| `button.main_queue_call_next`           | Call next ticket           |
-| `button.main_queue_reset_queue`         | Reset the queue            |
-
-If the entity IDs are slightly different on your system, open the **Main Queue** device page and copy the real IDs into the dashboard YAML.
+```yaml
+automation:
+  - alias: Print ticket when issued
+    trigger:
+      - platform: event
+        event_type: queue_management_ticket_issued
+    action:
+      # Example: notify a printer integration or script
+      - service: notify.your_printer
+        data:
+          message: "Ticket {{ trigger.event.data.ticket_display }}"
+```
 
 ---
 
-## Blueprint – Automatic voice announcement
+## Voice announcement
 
-1. Copy  
-   `blueprints/automation/queue_announce_ticket.yaml`  
-   into `config/blueprints/automation/`
-2. Reload automations or restart HA
-3. Settings → Automations → Create Automation → **Use Blueprint**
-4. Choose **“Queue Management – Announce Ticket”**
-5. Select your speaker and save
+1. Admin → enable announcement → set a `media_player` entity  
+2. Or use the included blueprint in `blueprints/automation/`
+
+---
+
+## Entities (for automations)
+
+Still created under the **Main Queue** device:
+
+- `sensor.main_queue_current_serving`
+- `sensor.main_queue_last_ticket_issued`
+- `sensor.main_queue_waiting`
+- `sensor.main_queue_status`
+- Buttons: take ticket, call next, reset
+
+Plus system sensor **Access links** with the panel URL.
 
 ---
 
 ## Services
 
-| Service                          | Description                              |
-|----------------------------------|------------------------------------------|
-| `queue_management.take_ticket`   | Issue next ticket                        |
-| `queue_management.call_next`     | Call the next waiting ticket             |
-| `queue_management.call_ticket`   | Call a specific number                   |
-| `queue_management.reset_queue`   | Clear waiting list & reset counter       |
-| `queue_management.create_queue`  | Create a new queue                       |
-| `queue_management.delete_queue`  | Delete a queue (not the main one)        |
-
----
-
-## Events
-
-- `queue_management_ticket_issued`
-- `queue_management_ticket_called`
-- `queue_management_queue_reset`
+| Service | Description |
+|---------|-------------|
+| `queue_management.take_ticket` | Issue next ticket |
+| `queue_management.call_next` | Call next waiting ticket |
+| `queue_management.call_ticket` | Call a specific number |
+| `queue_management.reset_queue` | Reset counter & waiting list |
+| `queue_management.create_queue` | Create another queue |
+| `queue_management.delete_queue` | Delete a queue |
 
 ---
 
 ## Folder structure
 
 ```
-queue_management/
-├── custom_components/queue_management/
-├── examples/
-│   ├── dashboard_reception.yaml
-│   ├── dashboard_calling.yaml
-│   ├── dashboard_display.yaml
-│   └── automation_announce_ticket.yaml
-├── blueprints/automation/
-│   └── queue_announce_ticket.yaml
-├── hacs.json
-├── LICENSE
-└── README.md
+custom_components/queue_management/
+├── __init__.py          # Panel + services
+├── http.py              # API + static frontend
+├── queue.py             # Core logic + history
+├── sensor.py / button.py
+├── frontend/
+│   ├── index.html       # Full UI
+│   ├── style.css
+│   └── app.js
+└── ...
 ```
-
----
-
-## Tips for a professional look
-
-1. Install **Kiosk Mode** custom card or use the Companion App in fullscreen.
-2. Hide the sidebar on the tablets.
-3. Create one queue per counter if you have several desks.
-4. Add a daily reset automation at opening time.
 
 ---
 

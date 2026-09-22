@@ -76,15 +76,16 @@ class AccessLinksSensor(SensorEntity):
         base = base.rstrip("/")
 
         return {
-            "reception_url": f"{base}/lovelace/reception",
-            "calling_url": f"{base}/lovelace/calling",
-            "display_url": f"{base}/lovelace/display",
+            "panel_url": f"{base}/queue-management",
+            "direct_ui": f"{base}/queue_management/static/index.html",
+            "reception_note": "Open the Queue Management sidebar item, then choose Reception mode",
+            "calling_note": "Open the Queue Management sidebar item, then choose Calling Desk mode",
+            "display_note": "Open the Queue Management sidebar item, then choose Display mode (or open direct_ui on a TV)",
             "howto": (
-                "1. Settings → Dashboards → Add Dashboard "
-                "(paths: reception, calling, display). "
-                "2. Open each → ⋮ → Raw configuration editor. "
-                "3. Paste YAML from the examples/ folder of this integration. "
-                "4. Open the URLs above on your tablets."
+                "After installing, open the sidebar → Queue Management. "
+                "Or go directly to /queue-management. "
+                "Use the mode buttons (Reception / Calling Desk / Display / Admin) "
+                "for each tablet or computer. No Lovelace setup required."
             ),
             "queues": list(self._manager.queues.keys()),
         }

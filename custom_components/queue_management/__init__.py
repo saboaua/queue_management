@@ -7,6 +7,7 @@ from typing import Any
 
 import voluptuous as vol
 
+from homeassistant.components import frontend
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
@@ -28,9 +29,14 @@ from .const import (
     SERVICE_DELETE_QUEUE,
     PLATFORMS,
 )
+from .http import async_setup_http
 from .queue import QueueManager
 
 _LOGGER = logging.getLogger(__name__)
+
+PANEL_ICON = "mdi:ticket-confirmation"
+PANEL_TITLE = "Queue Management"
+PANEL_URL_PATH = "queue-management"
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -44,8 +50,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await manager.async_load()
     hass.data[DOMAIN] = manager
 
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # HTTP API + static frontend
+    async_setup_http(hass)
 
+    # Sidebar panel – opens the full Queue Management UI (no Lovelace needed)
+    try:
+        frontend.async_register_built_in_panel(
+            hass,
+            component_name="iframe",
+            sidebar_title=PANEL_TITLE,
+            sidebar_icon=PANEL_ICON,
+            frontend_url_path=PANEL_URL_PATH,
+            config={"url": "/queue_management/static/index.html"},
+            require_admin=False,
+        )
+        _LOGGER.info(
+            "Queue Management panel registered. Open sidebar → Queue Management "
+            "or go to /%s",
+            PANEL_URL_PATH,
+        )
+    except ValueError:
+        # Panel already registered (e.g. after reload)
+        _LOGGER.debug("Queue Management panel already registered")
+
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     _register_services(hass, manager)
 
     return True
@@ -55,8 +83,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
+        try:
+            frontend.async_remove_panel(hass, PANEL_URL_PATH)
+        except Exception:
+            pass
         hass.data.pop(DOMAIN, None)
-        # Services are automatically cleaned up when integration unloads
     return unload_ok
 
 
@@ -66,16 +97,14 @@ def _register_services(hass: HomeAssistant, manager: QueueManager) -> None:
     async def handle_take_ticket(call: ServiceCall) -> dict[str, Any]:
         queue_id = call.data.get(ATTR_QUEUE_ID)
         try:
-            result = await manager.async_take_ticket(queue_id)
-            return result
+            return await manager.async_take_ticket(queue_id)
         except ValueError as err:
             raise HomeAssistantError(str(err)) from err
 
     async def handle_call_next(call: ServiceCall) -> dict[str, Any] | None:
         queue_id = call.data.get(ATTR_QUEUE_ID)
         try:
-            result = await manager.async_call_next(queue_id)
-            return result
+            return await manager.async_call_next(queue_id)
         except ValueError as err:
             raise HomeAssistantError(str(err)) from err
 
@@ -83,8 +112,7 @@ def _register_services(hass: HomeAssistant, manager: QueueManager) -> None:
         queue_id = call.data.get(ATTR_QUEUE_ID)
         ticket = call.data[ATTR_TICKET]
         try:
-            result = await manager.async_call_ticket(ticket, queue_id)
-            return result
+            return await manager.async_call_ticket(ticket, queue_id)
         except ValueError as err:
             raise HomeAssistantError(str(err)) from err
 
@@ -103,19 +131,18 @@ def _register_services(hass: HomeAssistant, manager: QueueManager) -> None:
                 prefix=call.data.get(ATTR_PREFIX, ""),
                 start_number=call.data.get(ATTR_START_NUMBER, 1),
             )
-            # Reload platforms so new entities appear
-            await hass.config_entries.async_reload(
-                list(hass.config_entries.async_entries(DOMAIN))[0].entry_id
-            )
+            entries = hass.config_entries.async_entries(DOMAIN)
+            if entries:
+                await hass.config_entries.async_reload(entries[0].entry_id)
         except ValueError as err:
             raise HomeAssistantError(str(err)) from err
 
     async def handle_delete_queue(call: ServiceCall) -> None:
         try:
             await manager.async_delete_queue(call.data[ATTR_QUEUE_ID])
-            await hass.config_entries.async_reload(
-                list(hass.config_entries.async_entries(DOMAIN))[0].entry_id
-            )
+            entries = hass.config_entries.async_entries(DOMAIN)
+            if entries:
+                await hass.config_entries.async_reload(entries[0].entry_id)
         except ValueError as err:
             raise HomeAssistantError(str(err)) from err
 
@@ -123,26 +150,16 @@ def _register_services(hass: HomeAssistant, manager: QueueManager) -> None:
         DOMAIN,
         SERVICE_TAKE_TICKET,
         handle_take_ticket,
-        schema=vol.Schema(
-            {
-                vol.Optional(ATTR_QUEUE_ID): cv.string,
-            }
-        ),
+        schema=vol.Schema({vol.Optional(ATTR_QUEUE_ID): cv.string}),
         supports_response=True,
     )
-
     hass.services.async_register(
         DOMAIN,
         SERVICE_CALL_NEXT,
         handle_call_next,
-        schema=vol.Schema(
-            {
-                vol.Optional(ATTR_QUEUE_ID): cv.string,
-            }
-        ),
+        schema=vol.Schema({vol.Optional(ATTR_QUEUE_ID): cv.string}),
         supports_response=True,
     )
-
     hass.services.async_register(
         DOMAIN,
         SERVICE_CALL_TICKET,
@@ -155,18 +172,12 @@ def _register_services(hass: HomeAssistant, manager: QueueManager) -> None:
         ),
         supports_response=True,
     )
-
     hass.services.async_register(
         DOMAIN,
         SERVICE_RESET_QUEUE,
         handle_reset_queue,
-        schema=vol.Schema(
-            {
-                vol.Optional(ATTR_QUEUE_ID): cv.string,
-            }
-        ),
+        schema=vol.Schema({vol.Optional(ATTR_QUEUE_ID): cv.string}),
     )
-
     hass.services.async_register(
         DOMAIN,
         SERVICE_CREATE_QUEUE,
@@ -180,14 +191,9 @@ def _register_services(hass: HomeAssistant, manager: QueueManager) -> None:
             }
         ),
     )
-
     hass.services.async_register(
         DOMAIN,
         SERVICE_DELETE_QUEUE,
         handle_delete_queue,
-        schema=vol.Schema(
-            {
-                vol.Required(ATTR_QUEUE_ID): cv.string,
-            }
-        ),
+        schema=vol.Schema({vol.Required(ATTR_QUEUE_ID): cv.string}),
     )
