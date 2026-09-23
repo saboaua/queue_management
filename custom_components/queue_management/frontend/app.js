@@ -317,8 +317,32 @@
     if (pin && document.activeElement !== pin) pin.value = "";
     const ae = $("#announceEnabled");
     if (ae && document.activeElement !== ae) ae.checked = !!s.announce_enabled;
-    const an = $("#announceEntity");
-    if (an && document.activeElement !== an) an.value = s.announce_entity || "";
+    fillMediaPlayerSelect(s.announce_entity || "");
+  }
+
+  function fillMediaPlayerSelect(selected) {
+    const sel = $("#announceEntity");
+    if (!sel || document.activeElement === sel) return;
+    const players = state.media_players || [];
+    const current = selected || sel.value || "";
+    let opts = `<option value="">— Select a speaker —</option>`;
+    if (!players.length) {
+      opts += `<option value="" disabled>No media_player entities found</option>`;
+    } else {
+      opts += players
+        .map((p) => {
+          const label = `${p.name} (${p.entity_id})`;
+          const selAttr = p.entity_id === current ? " selected" : "";
+          return `<option value="${p.entity_id}"${selAttr}>${label}</option>`;
+        })
+        .join("");
+    }
+    // Keep custom value if saved entity not in list anymore
+    if (current && !players.find((p) => p.entity_id === current)) {
+      opts += `<option value="${current}" selected>${current} (saved)</option>`;
+    }
+    sel.innerHTML = opts;
+    if (current) sel.value = current;
   }
 
   function updatePrintPreview() {
@@ -738,6 +762,24 @@
       });
       printDirty = false;
       toast("Print layout saved");
+    } catch (e) {
+      toast(e.message, true);
+    }
+  });
+
+  $("#btnTestAnnounce")?.addEventListener("click", async () => {
+    try {
+      const entity = ($("#announceEntity")?.value || "").trim();
+      if (!entity) return toast("Select a speaker first", true);
+      // Save current announce settings then trigger a test call message via action
+      await doAction("save_security", {
+        admin_pin: ($("#adminPin")?.value || "").trim(),
+        announce_enabled: true,
+        announce_entity: entity,
+      });
+      adminDirty = false;
+      await doAction("test_announce", {});
+      toast("Test announcement sent");
     } catch (e) {
       toast(e.message, true);
     }

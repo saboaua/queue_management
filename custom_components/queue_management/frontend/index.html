@@ -179,9 +179,13 @@
             <label>Admin / Manager PIN (blank = off)</label>
             <input id="adminPin" type="password" inputmode="numeric" placeholder="e.g. 1234" data-admin autocomplete="off" />
             <label class="checkbox"><input type="checkbox" id="announceEnabled" data-admin /> Announce when calling (TTS)</label>
-            <label>Media player entity</label>
-            <input id="announceEntity" type="text" placeholder="media_player.reception" data-admin />
+            <label>Speaker / media player</label>
+            <select id="announceEntity" data-admin>
+              <option value="">— Select a speaker —</option>
+            </select>
+            <p class="muted">List comes from your Home Assistant media players. Message is spoken automatically on <strong>Call Next</strong>.</p>
             <button id="btnSaveSecurity" class="btn-med btn-blue" type="button">Save security</button>
+            <button id="btnTestAnnounce" class="btn-med" type="button">Test announcement</button>
           </div>
 
           <div class="card">

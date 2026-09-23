@@ -48,6 +48,17 @@ def _state_payload(hass: HomeAssistant, manager: QueueManager) -> dict[str, Any]
             }
         )
 
+    media_players = []
+    for state in hass.states.async_all("media_player"):
+        media_players.append(
+            {
+                "entity_id": state.entity_id,
+                "name": state.name or state.entity_id,
+                "state": state.state,
+            }
+        )
+    media_players.sort(key=lambda x: (x["name"] or "").lower())
+
     return {
         "queues": queues_data,
         "cashiers": [c.to_dict() for c in manager.cashiers.values()],
@@ -56,6 +67,7 @@ def _state_payload(hass: HomeAssistant, manager: QueueManager) -> dict[str, Any]
         "print_template": manager.print_template,
         "overview": manager.overview(),
         "history": manager.history[-50:],
+        "media_players": media_players,
         "security": {
             "pin_enabled": bool(manager.admin_pin),
             "announce_enabled": manager.announce_enabled,
@@ -134,6 +146,10 @@ async def _handle_action(
         if action == "verify_pin":
             ok = manager.verify_pin(data.get("pin"))
             return web.json_response({"ok": ok})
+
+        if action == "test_announce":
+            await manager.async_test_announce()
+            return web.json_response({"ok": True})
 
         return web.json_response({"error": f"Unknown action: {action}"}, status=400)
     except (ValueError, KeyError, TypeError) as err:

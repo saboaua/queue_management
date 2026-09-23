@@ -506,6 +506,15 @@ class QueueManager:
         await self._async_announce(event_data)
         return event_data
 
+    async def async_test_announce(self) -> None:
+        """Speak a sample message on the configured media player."""
+        await self._async_announce(
+            {
+                "ticket_display": "42",
+                "cashier_name": "Cashier 1",
+            }
+        )
+
     async def _async_announce(self, event: dict[str, Any]) -> None:
         if not self.announce_enabled or not self.announce_entity:
             return
