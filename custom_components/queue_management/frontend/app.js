@@ -446,40 +446,58 @@
     if (current) sel.value = current;
   }
 
+  let _uiLogoUrl = null;
+  let _uiLogoFailed = false;
   function updateUiLogo(url) {
     const bar = $("#uiLogoBar");
     const img = $("#uiLogoImg");
     if (!bar || !img) return;
     const u = (url || "").trim();
     if (!u) {
+      _uiLogoUrl = null;
+      _uiLogoFailed = false;
       bar.hidden = true;
       return;
     }
-    img.src = u;
+    // Only kick off a (re)load when the URL changes, or when the previous
+    // attempt failed — setting img.src to the same value again is a no-op
+    // in most browsers, so a transient failure (e.g. HA still starting up)
+    // would otherwise leave the logo hidden forever.
+    if (u === _uiLogoUrl && !_uiLogoFailed) return;
+    _uiLogoUrl = u;
     img.onload = () => {
+      _uiLogoFailed = false;
       bar.hidden = false;
     };
     img.onerror = () => {
+      _uiLogoFailed = true;
       bar.hidden = true;
     };
+    img.src = "";
+    img.src = u;
   }
 
+  let _ptLogoUrl = null;
   function updateLogoPreview(url) {
     const img = $("#logoImg");
     const ph = document.querySelector(".logo-placeholder");
     const u = url || $("#pt_logo")?.value || "";
     if (!img) return;
     if (u) {
-      img.src = u;
-      img.hidden = false;
+      if (u === _ptLogoUrl) return;
+      _ptLogoUrl = u;
       img.onerror = () => {
         img.hidden = true;
         if (ph) ph.hidden = false;
       };
       img.onload = () => {
+        img.hidden = false;
         if (ph) ph.hidden = true;
       };
+      img.src = "";
+      img.src = u;
     } else {
+      _ptLogoUrl = null;
       img.hidden = true;
       if (ph) ph.hidden = false;
     }
@@ -875,14 +893,14 @@
     try {
       await doAction("save_theme", {
         theme: {
-          bg: "#0b1220",
-          card: "#151d2e",
-          text: "#f1f5f9",
-          muted: "#94a3b8",
-          accent: "#3b82f6",
-          success: "#22c55e",
-          warning: "#f97316",
-          danger: "#ef4444",
+          bg: "#f3f4fb",
+          card: "#ffffff",
+          text: "#14182b",
+          muted: "#6b7089",
+          accent: "#4f46e5",
+          success: "#12b76a",
+          warning: "#f79009",
+          danger: "#f04438",
         },
       });
       adminDirty = false;

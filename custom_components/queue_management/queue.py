@@ -29,14 +29,14 @@ MAX_HISTORY = 200
 MAX_SERVICE_SAMPLES = 50
 
 DEFAULT_THEME = {
-    "bg": "#0b1220",
-    "card": "#151d2e",
-    "text": "#f1f5f9",
-    "muted": "#94a3b8",
-    "accent": "#3b82f6",
-    "success": "#22c55e",
-    "warning": "#f97316",
-    "danger": "#ef4444",
+    "bg": "#f3f4fb",
+    "card": "#ffffff",
+    "text": "#14182b",
+    "muted": "#6b7089",
+    "accent": "#4f46e5",
+    "success": "#12b76a",
+    "warning": "#f79009",
+    "danger": "#f04438",
 }
 
 DEFAULT_PRINT_TEMPLATE = {
@@ -820,9 +820,13 @@ class QueueManager:
             self.announce_entity = str(data.get("announce_entity") or "").strip()
         if "announce_tts_entity" in data:
             self.announce_tts_entity = str(data.get("announce_tts_entity") or "")
+        if "announce_templates" in data:
             self.announce_templates = {**DEFAULT_ANNOUNCE_TEMPLATES, **(data.get("announce_templates") or {})}
+        if "call_sound" in data:
             self.call_sound = str(data.get("call_sound") or DEFAULT_CALL_SOUND)
+        if "new_ticket_sound" in data:
             self.new_ticket_sound = str(data.get("new_ticket_sound") or "beep")
+        if "ui_logo_url" in data:
             self.ui_logo_url = str(data.get("ui_logo_url") or "").strip()
         await self.async_save()
         self._notify()
