@@ -59,6 +59,16 @@ def _state_payload(hass: HomeAssistant, manager: QueueManager) -> dict[str, Any]
         )
     media_players.sort(key=lambda x: (x["name"] or "").lower())
 
+    tts_engines = []
+    for state in hass.states.async_all("tts"):
+        tts_engines.append(
+            {
+                "entity_id": state.entity_id,
+                "name": state.name or state.entity_id,
+            }
+        )
+    tts_engines.sort(key=lambda x: (x["name"] or "").lower())
+
     return {
         "queues": queues_data,
         "cashiers": [c.to_dict() for c in manager.cashiers.values()],
@@ -68,10 +78,12 @@ def _state_payload(hass: HomeAssistant, manager: QueueManager) -> dict[str, Any]
         "overview": manager.overview(),
         "history": manager.history[-50:],
         "media_players": media_players,
+        "tts_engines": tts_engines,
         "security": {
             "pin_enabled": bool(manager.admin_pin),
             "announce_enabled": manager.announce_enabled,
             "announce_entity": manager.announce_entity,
+            "announce_tts_entity": manager.announce_tts_entity,
         },
     }
 

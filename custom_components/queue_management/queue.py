@@ -195,6 +195,7 @@ class QueueManager:
         self._service_samples: list[float] = []
         self.announce_enabled: bool = False
         self.announce_entity: str = ""
+        self.announce_tts_entity: str = ""
         self._loaded = False
 
     async def async_load(self) -> None:
@@ -224,6 +225,7 @@ class QueueManager:
             ]
             self.announce_enabled = bool(data.get("announce_enabled", False))
             self.announce_entity = str(data.get("announce_entity") or "")
+            self.announce_tts_entity = str(data.get("announce_tts_entity") or "")
         else:
             self.queues[DEFAULT_QUEUE_ID] = Queue(
                 queue_id=DEFAULT_QUEUE_ID, name=DEFAULT_QUEUE_NAME
@@ -259,6 +261,7 @@ class QueueManager:
             "service_samples": self._service_samples[-MAX_SERVICE_SAMPLES:],
             "announce_enabled": self.announce_enabled,
             "announce_entity": self.announce_entity,
+            "announce_tts_entity": self.announce_tts_entity,
         }
         await self._store.async_save(data)
 
@@ -515,6 +518,14 @@ class QueueManager:
             }
         )
 
+    def _pick_tts_entity(self) -> str | None:
+        """Prefer configured TTS entity, else first available tts.* entity."""
+        if self.announce_tts_entity and self.hass.states.get(self.announce_tts_entity):
+            return self.announce_tts_entity
+        for state in self.hass.states.async_all("tts"):
+            return state.entity_id
+        return None
+
     async def _async_announce(self, event: dict[str, Any]) -> None:
         if not self.announce_enabled or not self.announce_entity:
             return
@@ -524,29 +535,64 @@ class QueueManager:
             message = f"Ticket {ticket}, please go to {cashier}"
         else:
             message = f"Ticket {ticket}, please proceed"
+
+        media = self.announce_entity
+        tts_entity = self._pick_tts_entity()
+        errors: list[str] = []
+
+        # 1) Modern HA: tts.speak with TTS entity + media player
+        if tts_entity:
+            try:
+                await self.hass.services.async_call(
+                    "tts",
+                    "speak",
+                    {
+                        "entity_id": tts_entity,
+                        "media_player_entity_id": media,
+                        "message": message,
+                    },
+                    blocking=False,
+                )
+                return
+            except Exception as err:
+                errors.append(f"tts.speak({tts_entity}): {err}")
+
+        # 2) tts.speak without explicit TTS entity (some setups)
         try:
             await self.hass.services.async_call(
                 "tts",
                 "speak",
                 {
-                    "media_player_entity_id": self.announce_entity,
+                    "media_player_entity_id": media,
                     "message": message,
                 },
                 blocking=False,
             )
-        except Exception:
+            return
+        except Exception as err:
+            errors.append(f"tts.speak: {err}")
+
+        # 3) Legacy say services if still registered
+        for svc in ("google_translate_say", "cloud_say", "say"):
+            if not self.hass.services.has_service("tts", svc):
+                continue
             try:
                 await self.hass.services.async_call(
                     "tts",
-                    "google_translate_say",
-                    {
-                        "entity_id": self.announce_entity,
-                        "message": message,
-                    },
+                    svc,
+                    {"entity_id": media, "message": message},
                     blocking=False,
                 )
+                return
             except Exception as err:
-                _LOGGER.warning("TTS announce failed: %s", err)
+                errors.append(f"tts.{svc}: {err}")
+
+        _LOGGER.warning(
+            "TTS announce failed (no working TTS service). "
+            "Install a TTS integration (e.g. Google Translate, Piper, Home Assistant Cloud) "
+            "and pick it in Admin. Details: %s",
+            " | ".join(errors) if errors else "none",
+        )
 
     async def async_complete(
         self,
@@ -746,6 +792,8 @@ class QueueManager:
             self.announce_enabled = bool(data["announce_enabled"])
         if "announce_entity" in data:
             self.announce_entity = str(data.get("announce_entity") or "").strip()
+        if "announce_tts_entity" in data:
+            self.announce_tts_entity = str(data.get("announce_tts_entity") or "").strip()
         await self.async_save()
         self._notify()
 

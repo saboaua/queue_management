@@ -183,7 +183,11 @@
             <select id="announceEntity" data-admin>
               <option value="">— Select a speaker —</option>
             </select>
-            <p class="muted">List comes from your Home Assistant media players. Message is spoken automatically on <strong>Call Next</strong>.</p>
+            <label>TTS engine</label>
+            <select id="announceTtsEntity" data-admin>
+              <option value="">— Auto (first available) —</option>
+            </select>
+            <p class="muted">Spoken automatically on <strong>Call Next</strong>. Needs a TTS integration (Piper, Google, Cloud, etc.).</p>
             <button id="btnSaveSecurity" class="btn-med btn-blue" type="button">Save security</button>
             <button id="btnTestAnnounce" class="btn-med" type="button">Test announcement</button>
           </div>

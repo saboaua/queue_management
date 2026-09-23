@@ -318,6 +318,26 @@
     const ae = $("#announceEnabled");
     if (ae && document.activeElement !== ae) ae.checked = !!s.announce_enabled;
     fillMediaPlayerSelect(s.announce_entity || "");
+    fillTtsEngineSelect(s.announce_tts_entity || "");
+  }
+
+  function fillTtsEngineSelect(selected) {
+    const sel = $("#announceTtsEntity");
+    if (!sel || document.activeElement === sel) return;
+    const engines = state.tts_engines || [];
+    const current = selected || sel.value || "";
+    let opts = `<option value="">— Auto (first available) —</option>`;
+    opts += engines
+      .map((e) => {
+        const selAttr = e.entity_id === current ? " selected" : "";
+        return `<option value="${e.entity_id}"${selAttr}>${e.name} (${e.entity_id})</option>`;
+      })
+      .join("");
+    if (current && !engines.find((e) => e.entity_id === current)) {
+      opts += `<option value="${current}" selected>${current} (saved)</option>`;
+    }
+    sel.innerHTML = opts;
+    if (current) sel.value = current;
   }
 
   function fillMediaPlayerSelect(selected) {
@@ -776,6 +796,7 @@
         admin_pin: ($("#adminPin")?.value || "").trim(),
         announce_enabled: true,
         announce_entity: entity,
+        announce_tts_entity: ($("#announceTtsEntity")?.value || "").trim(),
       });
       adminDirty = false;
       await doAction("test_announce", {});
@@ -791,6 +812,7 @@
         admin_pin: ($("#adminPin")?.value || "").trim(),
         announce_enabled: !!$("#announceEnabled")?.checked,
         announce_entity: ($("#announceEntity")?.value || "").trim(),
+        announce_tts_entity: ($("#announceTtsEntity")?.value || "").trim(),
       });
       adminDirty = false;
       unlocked = true;
