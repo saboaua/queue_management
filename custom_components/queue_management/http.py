@@ -76,6 +76,7 @@ def _state_payload(hass: HomeAssistant, manager: QueueManager) -> dict[str, Any]
         "theme": manager.theme,
         "print_template": manager.print_template,
         "overview": manager.overview(),
+        "dashboard": manager.dashboard_stats(),
         "history": manager.history[-50:],
         "media_players": media_players,
         "tts_engines": tts_engines,

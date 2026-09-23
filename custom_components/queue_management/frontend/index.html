@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Queue Management</title>
-  <link rel="stylesheet" href="/queue_management/static/style.css?v=171" />
+  <link rel="stylesheet" href="/queue_management/static/style.css?v=172" />
 </head>
 <body>
   <div id="app">
@@ -100,11 +100,28 @@
       <section id="mode-manager" class="mode-panel">
         <div class="mgr-header">
           <div>
-            <h2 class="section-title">Live service overview</h2>
+            <h2 class="section-title">Dashboard</h2>
             <p class="muted" id="mgrClock">Updating…</p>
           </div>
           <div class="mgr-pulse"><span class="dot"></span> LIVE</div>
         </div>
+
+        <div class="kpi-row" id="mgrKpis"></div>
+
+        <div class="chart-grid">
+          <div class="card chart-card chart-card-wide">
+            <div class="chart-card-head">
+              <h3>Peak hours <span class="muted">· last 7 days</span></h3>
+              <span class="badge" id="mgrPeakBadge">—</span>
+            </div>
+            <div id="mgrPeakChart" class="peak-chart"></div>
+          </div>
+          <div class="card chart-card">
+            <h3>Tickets by service <span class="muted">· last 7 days</span></h3>
+            <div id="mgrDonut" class="donut-wrap"></div>
+          </div>
+        </div>
+
         <div class="stats-row mgr-stats">
           <div class="stat stat-waiting"><div class="stat-value" id="mWaiting">0</div><div class="stat-label">Total waiting</div></div>
           <div class="stat stat-busy"><div class="stat-value" id="mServing">0</div><div class="stat-label">Busy</div></div>
@@ -314,6 +331,6 @@
     </div>
     <div id="toast" class="toast" hidden></div>
   </div>
-  <script src="/queue_management/static/app.js?v=171"></script>
+  <script src="/queue_management/static/app.js?v=172"></script>
 </body>
 </html>

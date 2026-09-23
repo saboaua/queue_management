@@ -528,7 +528,134 @@
     updateLogoPreview(logo);
   }
 
+  const DONUT_PALETTE = [
+    "var(--blue)", "var(--green)", "var(--orange)", "var(--red)",
+    "#8b5cf6", "#06b6d4", "#ec4899", "#84cc16",
+  ];
+
+  function fmtHour(h) {
+    const period = h < 12 ? "AM" : "PM";
+    let hr = h % 12;
+    if (hr === 0) hr = 12;
+    return `${hr}${period}`;
+  }
+
+  function renderDashboard() {
+    const d = state.dashboard || {};
+    const ov = state.overview || {};
+    const hourly = d.hourly_7d || new Array(24).fill(0);
+    const peakHour = d.peak_hour;
+
+    const kpis = $("#mgrKpis");
+    if (kpis) {
+      const trend = d.issued_trend_pct || 0;
+      const trendUp = trend >= 0;
+      const trendBadge = `<span class="kpi-trend ${trendUp ? "up" : "down"}">${
+        trendUp ? "▲" : "▼"
+      } ${Math.abs(trend)}% vs yesterday</span>`;
+      kpis.innerHTML = `
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-icon-blue">🎫</div>
+          <div class="kpi-body">
+            <div class="kpi-value">${d.today_issued ?? 0}</div>
+            <div class="kpi-label">Tickets today</div>
+            ${trendBadge}
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-icon-green">✅</div>
+          <div class="kpi-body">
+            <div class="kpi-value">${d.today_completed ?? 0}</div>
+            <div class="kpi-label">Completed today</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-icon-orange">⏳</div>
+          <div class="kpi-body">
+            <div class="kpi-value">${ov.total_waiting ?? 0}</div>
+            <div class="kpi-label">Waiting now</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-icon-purple">⏱️</div>
+          <div class="kpi-body">
+            <div class="kpi-value">${ov.avg_service_display || "—"}</div>
+            <div class="kpi-label">Avg. service time</div>
+          </div>
+        </div>`;
+    }
+
+    const chart = $("#mgrPeakChart");
+    const badge = $("#mgrPeakBadge");
+    if (badge) {
+      badge.textContent =
+        peakHour != null && hourly[peakHour] > 0
+          ? `Busiest: ${fmtHour(peakHour)}`
+          : "No data yet";
+    }
+    if (chart) {
+      const max = Math.max(1, ...hourly);
+      chart.innerHTML = hourly
+        .map((v, h) => {
+          const pct = Math.round((v / max) * 100);
+          const isPeak = h === peakHour && v > 0;
+          const label = h % 3 === 0 ? fmtHour(h) : "";
+          return `<div class="peak-bar-col" title="${fmtHour(h)}: ${v} ticket${
+            v === 1 ? "" : "s"
+          }">
+            <div class="peak-bar ${isPeak ? "peak" : ""}" style="height:${Math.max(
+            pct,
+            v > 0 ? 4 : 2
+          )}%"></div>
+            <div class="peak-bar-label">${label}</div>
+          </div>`;
+        })
+        .join("");
+    }
+
+    const donutWrap = $("#mgrDonut");
+    if (donutWrap) {
+      const services = state.services || [];
+      const nameFor = (id) =>
+        services.find((s) => s.id === id)?.name || id || "Unassigned";
+      const entries = Object.entries(d.services_7d || {}).sort((a, b) => b[1] - a[1]);
+      const total = entries.reduce((sum, [, v]) => sum + v, 0);
+      if (!total) {
+        donutWrap.innerHTML = `<div class="muted empty-state">No tickets with a service yet</div>`;
+      } else {
+        let offset = 0;
+        const circumference = 2 * Math.PI * 40;
+        const segments = entries
+          .map(([id, v], i) => {
+            const frac = v / total;
+            const dash = frac * circumference;
+            const seg = `<circle cx="60" cy="60" r="40" fill="none" stroke="${
+              DONUT_PALETTE[i % DONUT_PALETTE.length]
+            }" stroke-width="18" stroke-dasharray="${dash} ${circumference - dash}" stroke-dashoffset="${-offset}" transform="rotate(-90 60 60)"></circle>`;
+            offset += dash;
+            return seg;
+          })
+          .join("");
+        const legend = entries
+          .map(
+            ([id, v], i) => `<div class="donut-legend-item">
+              <span class="donut-swatch" style="background:${
+                DONUT_PALETTE[i % DONUT_PALETTE.length]
+              }"></span>
+              <span class="dl-name">${escapeAttr(nameFor(id))}</span>
+              <span class="dl-pct muted">${Math.round((v / total) * 100)}%</span>
+            </div>`
+          )
+          .join("");
+        donutWrap.innerHTML = `
+          <svg viewBox="0 0 120 120" class="donut-svg">${segments}</svg>
+          <div class="donut-legend">${legend}</div>`;
+      }
+    }
+  }
+
   function renderManager() {
+    renderDashboard();
     const ov = state.overview || {};
     setText("mWaiting", ov.total_waiting ?? 0);
     setText("mServing", ov.total_serving ?? 0);

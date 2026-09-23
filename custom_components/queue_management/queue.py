@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
@@ -27,6 +28,7 @@ _LOGGER = logging.getLogger(__name__)
 SIGNAL_UPDATE = f"{DOMAIN}_update"
 MAX_HISTORY = 200
 MAX_SERVICE_SAMPLES = 50
+MAX_DAILY_STATS_DAYS = 30
 
 DEFAULT_THEME = {
     "bg": "#f7f8fc",
@@ -199,6 +201,7 @@ class QueueManager:
         self.theme: dict[str, str] = dict(DEFAULT_THEME)
         self.print_template: dict[str, Any] = dict(DEFAULT_PRINT_TEMPLATE)
         self.history: list[dict[str, Any]] = []
+        self.daily_stats: dict[str, dict[str, Any]] = {}
         self.admin_pin: str = ""
         self.avg_service_seconds: float = 180.0  # default 3 min
         self._service_samples: list[float] = []
@@ -218,6 +221,8 @@ class QueueManager:
                 q = Queue.from_dict(qdata)
                 self.queues[q.queue_id] = q
             self.history = list(data.get("history", []))[-MAX_HISTORY:]
+            self.daily_stats = dict(data.get("daily_stats") or {})
+            self._prune_daily_stats()
             for cdata in data.get("cashiers", []):
                 c = Cashier.from_dict(cdata)
                 self.cashiers[c.id] = c
@@ -273,6 +278,7 @@ class QueueManager:
             "theme": self.theme,
             "print_template": self.print_template,
             "history": self.history[-MAX_HISTORY:],
+            "daily_stats": self.daily_stats,
             "admin_pin": self.admin_pin,
             "avg_service_seconds": self.avg_service_seconds,
             "service_samples": self._service_samples[-MAX_SERVICE_SAMPLES:],
@@ -291,6 +297,85 @@ class QueueManager:
         self.history.append(entry)
         if len(self.history) > MAX_HISTORY:
             self.history = self.history[-MAX_HISTORY:]
+
+    def _bump_daily(self, kind: str, service_id: str | None = None) -> None:
+        """Track per-hour ticket activity so the dashboard survives history
+        trimming and HA restarts (history[] is capped and log-shaped; this
+        is a compact rolling aggregate purpose-built for analytics)."""
+        now = dt_util.now()
+        date_key = now.strftime("%Y-%m-%d")
+        day = self.daily_stats.setdefault(
+            date_key, {"hourly": [0] * 24, "issued": 0, "completed": 0, "services": {}}
+        )
+        if kind == "issued":
+            day["issued"] += 1
+            day["hourly"][now.hour] += 1
+            if service_id:
+                day["services"][service_id] = day["services"].get(service_id, 0) + 1
+        elif kind == "completed":
+            day["completed"] += 1
+        self._prune_daily_stats()
+
+    def _prune_daily_stats(self) -> None:
+        if len(self.daily_stats) <= MAX_DAILY_STATS_DAYS:
+            return
+        for key in sorted(self.daily_stats.keys())[: len(self.daily_stats) - MAX_DAILY_STATS_DAYS]:
+            self.daily_stats.pop(key, None)
+
+    def dashboard_stats(self) -> dict[str, Any]:
+        """Peak-hours, trend and service-mix analytics for the Manager dashboard."""
+        empty_day = {"hourly": [0] * 24, "issued": 0, "completed": 0, "services": {}}
+        now = dt_util.now()
+        today_key = now.strftime("%Y-%m-%d")
+        yesterday_key = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+        today = self.daily_stats.get(today_key) or empty_day
+        yesterday = self.daily_stats.get(yesterday_key) or empty_day
+
+        hourly_7d = [0] * 24
+        services_7d: dict[str, int] = {}
+        issued_7d = 0
+        completed_7d = 0
+        for i in range(7):
+            key = (now - timedelta(days=i)).strftime("%Y-%m-%d")
+            d = self.daily_stats.get(key)
+            if not d:
+                continue
+            h = d.get("hourly") or [0] * 24
+            for idx in range(24):
+                hourly_7d[idx] += h[idx] if idx < len(h) else 0
+            issued_7d += d.get("issued", 0)
+            completed_7d += d.get("completed", 0)
+            for sid, cnt in (d.get("services") or {}).items():
+                services_7d[sid] = services_7d.get(sid, 0) + cnt
+
+        # Fair "vs yesterday" comparison: same elapsed hours only, not full-day
+        # totals against a still-in-progress today.
+        cur_hour = now.hour
+        today_so_far = sum(today["hourly"][: cur_hour + 1])
+        yesterday_so_far = sum(yesterday["hourly"][: cur_hour + 1])
+        if yesterday_so_far > 0:
+            issued_trend_pct = round(
+                ((today_so_far - yesterday_so_far) / yesterday_so_far) * 100, 1
+            )
+        elif today_so_far > 0:
+            issued_trend_pct = 100.0
+        else:
+            issued_trend_pct = 0.0
+
+        peak_hour = max(range(24), key=lambda h: hourly_7d[h]) if any(hourly_7d) else None
+
+        return {
+            "today_issued": today.get("issued", 0),
+            "today_completed": today.get("completed", 0),
+            "yesterday_issued": yesterday.get("issued", 0),
+            "issued_trend_pct": issued_trend_pct,
+            "hourly_today": today["hourly"],
+            "hourly_7d": hourly_7d,
+            "peak_hour": peak_hour,
+            "services_7d": services_7d,
+            "issued_7d": issued_7d,
+            "completed_7d": completed_7d,
+        }
 
     def get_queue(self, queue_id: str | None = None) -> Queue | None:
         return self.queues.get(queue_id or DEFAULT_QUEUE_ID)
@@ -446,6 +531,7 @@ class QueueManager:
             "timestamp": now,
         }
         self.add_history({**event_data, "type": "issued"})
+        self._bump_daily("issued", service_id=service_id)
         event_data["print"] = self.build_print_payload(event_data)
         await self.async_save()
         self._notify()
@@ -677,6 +763,7 @@ class QueueManager:
                     "cashier_name": cashier.name if cashier else None,
                 }
             )
+            self._bump_daily("completed")
         await self.async_save()
         self._notify()
 
