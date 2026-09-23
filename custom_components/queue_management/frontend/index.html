@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Queue Management</title>
-  <link rel="stylesheet" href="/queue_management/static/style.css?v=161" />
+  <link rel="stylesheet" href="/queue_management/static/style.css?v=162" />
 </head>
 <body>
   <div id="app">
@@ -26,6 +26,9 @@
     </header>
 
     <main>
+      <div id="uiLogoBar" class="ui-logo-bar" hidden>
+        <img id="uiLogoImg" alt="Logo" />
+      </div>
       <!-- RECEPTION -->
       <section id="mode-reception" class="mode-panel active">
         <div class="hero">
@@ -193,7 +196,7 @@
             <label>Message without cashier</label>
             <input id="announceWithoutCashier" type="text" data-admin placeholder="Ticket {ticket}, please proceed" />
             <p class="muted">Placeholders: <code>{ticket}</code> <code>{cashier}</code></p>
-            <label for="callSound">Calling desk sound</label>
+            <label for="callSound">Sound when calling a ticket</label>
             <select id="callSound" data-admin>
               <option value="none">None</option>
               <option value="beep">Beep</option>
@@ -201,7 +204,19 @@
               <option value="double">Double beep</option>
               <option value="alert">Alert</option>
             </select>
-            <p class="muted">Plays on this computer/tablet when Call Next is pressed.</p>
+            <p class="muted">Plays on the calling desk when Call Next is pressed.</p>
+            <label for="newTicketSound">Sound when a new ticket is taken</label>
+            <select id="newTicketSound" data-admin>
+              <option value="none">None</option>
+              <option value="beep">Beep</option>
+              <option value="chime">Chime</option>
+              <option value="double">Double beep</option>
+              <option value="alert">Alert</option>
+            </select>
+            <p class="muted">Plays on the calling desk computer whenever reception presses Take Ticket.</p>
+            <label for="uiLogoUrl">Reception / header logo URL</label>
+            <input id="uiLogoUrl" type="url" data-admin placeholder="https://example.com/logo.png" />
+            <p class="muted">Shown centered at the top of the queue screens.</p>
             <div class="btn-row">
               <button id="btnSaveSecurity" class="btn-med btn-blue" type="button">Save security</button>
               <button id="btnTestAnnounce" class="btn-med btn-secondary" type="button">Test announcement</button>
@@ -299,6 +314,6 @@
     </div>
     <div id="toast" class="toast" hidden></div>
   </div>
-  <script src="/queue_management/static/app.js?v=161"></script>
+  <script src="/queue_management/static/app.js?v=162"></script>
 </body>
 </html>

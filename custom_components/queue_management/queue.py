@@ -207,6 +207,8 @@ class QueueManager:
         self.announce_tts_entity: str = ""
         self.announce_templates: dict[str, str] = dict(DEFAULT_ANNOUNCE_TEMPLATES)
         self.call_sound: str = DEFAULT_CALL_SOUND
+        self.new_ticket_sound: str = "beep"
+        self.ui_logo_url: str = ""
         self._loaded = False
 
     async def async_load(self) -> None:
@@ -239,6 +241,8 @@ class QueueManager:
             self.announce_tts_entity = str(data.get("announce_tts_entity") or "")
             self.announce_templates = {**DEFAULT_ANNOUNCE_TEMPLATES, **(data.get("announce_templates") or {})}
             self.call_sound = str(data.get("call_sound") or DEFAULT_CALL_SOUND)
+            self.new_ticket_sound = str(data.get("new_ticket_sound") or "beep")
+            self.ui_logo_url = str(data.get("ui_logo_url") or "")
         else:
             self.queues[DEFAULT_QUEUE_ID] = Queue(
                 queue_id=DEFAULT_QUEUE_ID, name=DEFAULT_QUEUE_NAME
@@ -277,6 +281,8 @@ class QueueManager:
             "announce_tts_entity": self.announce_tts_entity,
             "announce_templates": self.announce_templates,
             "call_sound": self.call_sound,
+            "new_ticket_sound": self.new_ticket_sound,
+            "ui_logo_url": self.ui_logo_url,
         }
         await self._store.async_save(data)
 
@@ -815,7 +821,9 @@ class QueueManager:
         if "announce_tts_entity" in data:
             self.announce_tts_entity = str(data.get("announce_tts_entity") or "")
             self.announce_templates = {**DEFAULT_ANNOUNCE_TEMPLATES, **(data.get("announce_templates") or {})}
-            self.call_sound = str(data.get("call_sound") or DEFAULT_CALL_SOUND).strip()
+            self.call_sound = str(data.get("call_sound") or DEFAULT_CALL_SOUND)
+            self.new_ticket_sound = str(data.get("new_ticket_sound") or "beep")
+            self.ui_logo_url = str(data.get("ui_logo_url") or "").strip()
         await self.async_save()
         self._notify()
 

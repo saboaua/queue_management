@@ -20,9 +20,25 @@
   let pendingMode = null;
   let adminDirty = false;
   let printDirty = false;
+  let lastWaitingTotal = null;
+  let soundArmed = false;
 
   // Browser call sounds (Calling Desk)
   let audioCtx = null;
+  function maybePlayNewTicketSound() {
+    const total = (state.queues || []).reduce((n, q) => n + (q.waiting_count || 0), 0);
+    if (lastWaitingTotal === null) {
+      lastWaitingTotal = total;
+      return;
+    }
+    // New ticket(s) issued — notify calling desk (and any open UI)
+    if (total > lastWaitingTotal && soundArmed) {
+      const kind = (state.security && state.security.new_ticket_sound) || "beep";
+      playCallSound(kind);
+    }
+    lastWaitingTotal = total;
+  }
+
   function playCallSound(kind) {
     const sound = kind || (state.security && state.security.call_sound) || "chime";
     if (!sound || sound === "none") return;
@@ -78,6 +94,7 @@
         currentQueueId = state.queues[0]?.queue_id || "main";
       }
       applyTheme(state.theme || {});
+      maybePlayNewTicketSound();
       render();
       hideToast();
     } catch (e) {
@@ -367,7 +384,10 @@
       setVal("announceWithCashier", tpl.with_cashier || "Ticket {ticket}, please go to {cashier}");
       setVal("announceWithoutCashier", tpl.without_cashier || "Ticket {ticket}, please proceed");
       setVal("callSound", s.call_sound || "chime");
+      setVal("newTicketSound", s.new_ticket_sound || "beep");
+      setVal("uiLogoUrl", s.ui_logo_url || "");
     }
+    updateUiLogo(s.ui_logo_url || "");
     fillMediaPlayerSelect(s.announce_entity || "");
     fillTtsEngineSelect(s.announce_tts_entity || "");
   }
@@ -424,6 +444,24 @@
     }
     sel.innerHTML = opts;
     if (current) sel.value = current;
+  }
+
+  function updateUiLogo(url) {
+    const bar = $("#uiLogoBar");
+    const img = $("#uiLogoImg");
+    if (!bar || !img) return;
+    const u = (url || "").trim();
+    if (!u) {
+      bar.hidden = true;
+      return;
+    }
+    img.src = u;
+    img.onload = () => {
+      bar.hidden = false;
+    };
+    img.onerror = () => {
+      bar.hidden = true;
+    };
   }
 
   function updateLogoPreview(url) {
@@ -676,6 +714,7 @@
             : ""
         );
         if ($("#ticketResult")) $("#ticketResult").hidden = false;
+        playCallSound((state.security && state.security.new_ticket_sound) || "beep");
         toast(`Ticket ${res.result.ticket_display} issued`);
       }
     } catch (e) {
@@ -898,6 +937,8 @@
           without_cashier: ($("#announceWithoutCashier")?.value || "").trim(),
         },
         call_sound: $("#callSound")?.value || "chime",
+        new_ticket_sound: $("#newTicketSound")?.value || "beep",
+        ui_logo_url: ($("#uiLogoUrl")?.value || "").trim(),
       });
       adminDirty = false;
       await doAction("test_announce", {});
@@ -919,6 +960,8 @@
           without_cashier: ($("#announceWithoutCashier")?.value || "").trim(),
         },
         call_sound: $("#callSound")?.value || "chime",
+        new_ticket_sound: $("#newTicketSound")?.value || "beep",
+        ui_logo_url: ($("#uiLogoUrl")?.value || "").trim(),
       });
       adminDirty = false;
       unlocked = true;
@@ -970,6 +1013,19 @@
   $("#pinInput")?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") $("#pinOk")?.click();
   });
+
+  // Browsers require a user gesture before audio
+  document.addEventListener(
+    "click",
+    () => {
+      soundArmed = true;
+      try {
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === "suspended") audioCtx.resume();
+      } catch (_) {}
+    },
+    { once: false }
+  );
 
   setMode("reception");
   loadState();
