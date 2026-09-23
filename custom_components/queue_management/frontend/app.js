@@ -342,29 +342,6 @@
     if ($("#printerName")) $("#printerName").value = s.printer_name || "";
     if ($("#announceEnabled")) $("#announceEnabled").checked = !!s.announce_enabled;
     if ($("#announceEntity")) $("#announceEntity").value = s.announce_entity || "";
-
-    const hist = $("#historyList");
-    if (hist) {
-      hist.innerHTML = (state.history || [])
-        .slice()
-        .reverse()
-        .map((h) => {
-          const time = h.timestamp ? new Date(h.timestamp).toLocaleTimeString() : "";
-          const who = h.cashier_name ? ` → ${h.cashier_name}` : "";
-          const label =
-            h.type === "issued"
-              ? `Issued ${h.ticket_display || ""}`
-              : h.type === "called"
-              ? `Called ${h.ticket_display || ""}${who}`
-              : h.type === "completed"
-              ? `Completed ${h.ticket_display || ""}${who}`
-              : h.type === "reset"
-              ? `Reset ${h.queue_name || ""}`
-              : h.type || "";
-          return `<div class="history-item"><span><span class="type">${h.type || ""}</span> ${label}</span><span>${time}</span></div>`;
-        })
-        .join("") || "<div class='muted'>No history yet</div>";
-    }
   }
 
   // Events

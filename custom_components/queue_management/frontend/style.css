@@ -506,3 +506,36 @@ EOF
   text-align: center;
   line-height: 1.45;
 }
+
+/* Manager spacing under top stats */
+.mode-panel#mode-manager .mgr-stats,
+.mgr-stats {
+  margin-bottom: 20px;
+}
+#mode-manager .admin-grid {
+  margin-top: 4px;
+  gap: 16px;
+}
+
+/* Clear danger / reset button */
+.btn-danger,
+.btn-red {
+  background: var(--red) !important;
+  color: #fff !important;
+  border: none !important;
+  font-weight: 700;
+  opacity: 1 !important;
+}
+.btn-danger:hover,
+.btn-red:hover {
+  filter: brightness(1.08);
+}
+
+/* Cashier admin inputs – avoid clipping ids */
+.cashier-edit {
+  grid-template-columns: minmax(90px, 1fr) minmax(120px, 1.6fr) auto auto;
+}
+.cashier-edit input.c-id {
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+}

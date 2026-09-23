@@ -558,8 +558,13 @@ class QueueManager:
             "queue_id": event.get("queue_id"),
             "queue_name": event.get("queue_name"),
             "paper_width": tpl.get("paper_width", "58mm"),
-            "raw_event": event,
-            "template": tpl,
+            "template": {
+                "title": tpl.get("title"),
+                "header": tpl.get("header"),
+                "footer": tpl.get("footer"),
+                "extra_line": tpl.get("extra_line"),
+                "paper_width": tpl.get("paper_width", "58mm"),
+            },
         }
 
     @callback
