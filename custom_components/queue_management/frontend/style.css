@@ -4,20 +4,20 @@
    override bg/card/text/muted/accent/success/warning/danger at runtime.
    ========================================================================= */
 :root {
-  --bg: #f3f4fb;
+  --bg: #f7f8fc;
   --card: #ffffff;
-  --text: #14182b;
-  --muted: #6b7089;
-  --border: rgba(20, 24, 43, 0.09);
-  --blue: #4f46e5;
+  --text: #0b0f1e;
+  --muted: #545a72;
+  --border: rgba(11, 15, 30, 0.12);
+  --blue: #2f6fed;
   --blue-ink: #ffffff;
-  --green: #12b76a;
-  --orange: #f79009;
-  --red: #f04438;
+  --green: #00b876;
+  --orange: #ff8a00;
+  --red: #ef3f3f;
   --radius: 18px;
   --radius-sm: 12px;
-  --shadow: 0 14px 34px -10px rgba(20, 24, 60, 0.18);
-  --shadow-sm: 0 4px 14px -4px rgba(20, 24, 60, 0.12);
+  --shadow: 0 16px 36px -10px rgba(11, 15, 30, 0.22);
+  --shadow-sm: 0 4px 16px -4px rgba(11, 15, 30, 0.16);
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 * { box-sizing: border-box; }
@@ -28,8 +28,8 @@ html, body {
 }
 body {
   background-image:
-    radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--blue) 10%, transparent) 0%, transparent 45%),
-    radial-gradient(circle at 100% 20%, color-mix(in srgb, var(--green) 8%, transparent) 0%, transparent 40%);
+    radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--blue) 14%, transparent) 0%, transparent 42%),
+    radial-gradient(circle at 100% 15%, color-mix(in srgb, var(--green) 12%, transparent) 0%, transparent 38%);
   background-attachment: fixed;
 }
 #app { min-height: 100vh; display: flex; flex-direction: column; }
@@ -73,7 +73,7 @@ main { flex: 1; padding: 26px 20px 100px; max-width: 1120px; margin: 0 auto; wid
 /* Reception                                                               */
 /* ---------------------------------------------------------------------- */
 .hero { text-align: center; margin-bottom: 22px; }
-.hero h1 { margin: 0 0 6px; font-size: clamp(1.8rem, 4vw, 2.4rem); letter-spacing: -0.02em; }
+.hero h1 { margin: 0 0 6px; font-size: clamp(1.9rem, 4.2vw, 2.6rem); font-weight: 850; letter-spacing: -0.02em; }
 .hero p { margin: 0; color: var(--muted); font-size: 1.02rem; }
 
 .service-grid {
@@ -100,18 +100,23 @@ main { flex: 1; padding: 26px 20px 100px; max-width: 1120px; margin: 0 auto; wid
   border: none; border-radius: var(--radius-sm); cursor: pointer; font-weight: 750;
   color: #fff; transition: filter .15s ease, transform .1s ease;
 }
-.btn-huge { width: 100%; padding: 24px; font-size: 1.4rem; margin-bottom: 16px; letter-spacing: -0.01em; }
+.btn-huge { width: 100%; padding: 26px; font-size: 1.5rem; margin-bottom: 16px; letter-spacing: -0.01em; }
 .btn-med { padding: 12px 18px; font-size: .92rem; }
-.btn-green { background: linear-gradient(135deg, var(--green), color-mix(in srgb, var(--green) 70%, #0a8a52)); }
-.btn-orange { background: linear-gradient(135deg, var(--orange), color-mix(in srgb, var(--orange) 70%, #c2660a)); }
-.btn-blue { background: linear-gradient(135deg, var(--blue), color-mix(in srgb, var(--blue) 65%, #2f2ab3)); }
+.btn-green { background: linear-gradient(135deg, var(--green), color-mix(in srgb, var(--green) 70%, #086b4c)); }
+.btn-orange { background: linear-gradient(135deg, var(--orange), color-mix(in srgb, var(--orange) 70%, #b35400)); }
+.btn-blue { background: linear-gradient(135deg, var(--blue), color-mix(in srgb, var(--blue) 65%, #1c3fae)); }
 .btn-warn { background: #eab308; color: #1a1400; }
 .btn-danger, .btn-red { background: var(--red) !important; color: #fff !important; }
 .btn-huge:hover, .btn-med:hover { filter: brightness(1.06); }
 .btn-huge:active, .btn-med:active { transform: translateY(1px); }
 #btnTake.btn-huge, .btn-huge.btn-green {
-  min-height: 90px; padding: 28px 22px; font-size: 1.6rem; border-radius: 20px; letter-spacing: 0.02em;
-  box-shadow: 0 16px 30px -12px color-mix(in srgb, var(--green) 55%, transparent);
+  min-height: 148px; padding: 34px 24px; font-size: 2.1rem; border-radius: 24px; letter-spacing: 0.03em;
+  box-shadow: 0 22px 44px -14px color-mix(in srgb, var(--green) 65%, transparent),
+              0 0 0 5px color-mix(in srgb, var(--green) 14%, transparent);
+}
+#btnTake.btn-huge:hover, .btn-huge.btn-green:hover {
+  box-shadow: 0 26px 50px -12px color-mix(in srgb, var(--green) 70%, transparent),
+              0 0 0 6px color-mix(in srgb, var(--green) 18%, transparent);
 }
 
 .ticket-result {

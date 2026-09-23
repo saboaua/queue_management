@@ -29,14 +29,14 @@ MAX_HISTORY = 200
 MAX_SERVICE_SAMPLES = 50
 
 DEFAULT_THEME = {
-    "bg": "#f3f4fb",
+    "bg": "#f7f8fc",
     "card": "#ffffff",
-    "text": "#14182b",
-    "muted": "#6b7089",
-    "accent": "#4f46e5",
-    "success": "#12b76a",
-    "warning": "#f79009",
-    "danger": "#f04438",
+    "text": "#0b0f1e",
+    "muted": "#545a72",
+    "accent": "#2f6fed",
+    "success": "#00b876",
+    "warning": "#ff8a00",
+    "danger": "#ef3f3f",
 }
 
 DEFAULT_PRINT_TEMPLATE = {
