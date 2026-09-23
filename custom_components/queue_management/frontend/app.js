@@ -21,6 +21,45 @@
   let adminDirty = false;
   let printDirty = false;
 
+  // Browser call sounds (Calling Desk)
+  let audioCtx = null;
+  function playCallSound(kind) {
+    const sound = kind || (state.security && state.security.call_sound) || "chime";
+    if (!sound || sound === "none") return;
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const now = audioCtx.currentTime;
+      const beep = (freq, start, dur, type = "sine", gain = 0.2) => {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = type;
+        o.frequency.value = freq;
+        g.gain.setValueAtTime(gain, now + start);
+        g.gain.exponentialRampToValueAtTime(0.001, now + start + dur);
+        o.connect(g);
+        g.connect(audioCtx.destination);
+        o.start(now + start);
+        o.stop(now + start + dur + 0.02);
+      };
+      if (sound === "beep") beep(880, 0, 0.15);
+      else if (sound === "double") {
+        beep(880, 0, 0.12);
+        beep(880, 0.18, 0.12);
+      } else if (sound === "alert") {
+        beep(523, 0, 0.12, "square", 0.15);
+        beep(659, 0.14, 0.12, "square", 0.15);
+        beep(784, 0.28, 0.18, "square", 0.15);
+      } else {
+        // chime
+        beep(523.25, 0, 0.2, "sine", 0.18);
+        beep(659.25, 0.12, 0.25, "sine", 0.16);
+        beep(783.99, 0.24, 0.35, "sine", 0.14);
+      }
+    } catch (e) {
+      console.warn("sound failed", e);
+    }
+  }
+
   async function api(path, options = {}) {
     const res = await fetch(`/api/queue_management/${path}`, {
       credentials: "same-origin",
@@ -301,7 +340,10 @@
     set("pt_header", t.header);
     set("pt_footer", t.footer);
     set("pt_extra", t.extra_line);
+    set("pt_logo", t.logo_url || "");
+    set("pt_social", t.social_line || "");
     set("pt_paper", t.paper_width || "58mm");
+    updateLogoPreview(t.logo_url || "");
     set("pt_show_number", t.show_number !== false, true);
     set("pt_show_queue", t.show_queue_name !== false, true);
     set("pt_show_datetime", t.show_datetime !== false, true);
@@ -312,12 +354,19 @@
 
   function fillSecurityForm() {
     const s = state.security || {};
-    // Always refresh dropdowns so TTS/speaker lists appear; skip only focused fields
     if (!adminDirty) {
       const pin = $("#adminPin");
       if (pin && document.activeElement !== pin) pin.value = "";
       const ae = $("#announceEnabled");
       if (ae && document.activeElement !== ae) ae.checked = !!s.announce_enabled;
+      const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el && document.activeElement !== el) el.value = val ?? "";
+      };
+      const tpl = s.announce_templates || {};
+      setVal("announceWithCashier", tpl.with_cashier || "Ticket {ticket}, please go to {cashier}");
+      setVal("announceWithoutCashier", tpl.without_cashier || "Ticket {ticket}, please proceed");
+      setVal("callSound", s.call_sound || "chime");
     }
     fillMediaPlayerSelect(s.announce_entity || "");
     fillTtsEngineSelect(s.announce_tts_entity || "");
@@ -377,6 +426,27 @@
     if (current) sel.value = current;
   }
 
+  function updateLogoPreview(url) {
+    const img = $("#logoImg");
+    const ph = document.querySelector(".logo-placeholder");
+    const u = url || $("#pt_logo")?.value || "";
+    if (!img) return;
+    if (u) {
+      img.src = u;
+      img.hidden = false;
+      img.onerror = () => {
+        img.hidden = true;
+        if (ph) ph.hidden = false;
+      };
+      img.onload = () => {
+        if (ph) ph.hidden = true;
+      };
+    } else {
+      img.hidden = true;
+      if (ph) ph.hidden = false;
+    }
+  }
+
   function updatePrintPreview() {
     const pre = $("#pt_preview");
     if (!pre) return;
@@ -385,6 +455,9 @@
     const header = $("#pt_header")?.value;
     const footer = $("#pt_footer")?.value;
     const extra = $("#pt_extra")?.value;
+    const logo = $("#pt_logo")?.value;
+    const social = $("#pt_social")?.value;
+    if (logo) lines.push("[LOGO]");
     if (title) lines.push(title);
     if (header) lines.push(header);
     if ($("#pt_show_queue")?.checked) lines.push("Queue: Main Queue");
@@ -394,7 +467,9 @@
     if ($("#pt_show_datetime")?.checked) lines.push(new Date().toLocaleString());
     if (extra) lines.push(extra);
     if (footer) lines.push(footer);
+    if (social) lines.push(social);
     pre.textContent = lines.join("\n");
+    updateLogoPreview(logo);
   }
 
   function renderManager() {
@@ -544,13 +619,14 @@
               ticket: queue.waiting[idx],
               cashier_id: selectedCashierId || undefined,
             })
-              .then((r) =>
+              .then((r) => {
+                playCallSound();
                 toast(
                   `Called ${t}${
                     r?.result?.cashier_name ? " → " + r.result.cashier_name : ""
                   }`
-                )
-              )
+                );
+              })
               .catch((e) => toast(e.message, true));
           ul.appendChild(li);
         });
@@ -611,13 +687,14 @@
     try {
       if (!selectedCashierId) return toast("Select a cashier first", true);
       const res = await doAction("call_next", { cashier_id: selectedCashierId });
-      if (res?.result)
+      if (res?.result) {
+        playCallSound();
         toast(
           `Now serving ${res.result.ticket_display}${
             res.result.cashier_name ? " at " + res.result.cashier_name : ""
           }`
         );
-      else toast("No tickets waiting", true);
+      } else toast("No tickets waiting", true);
     } catch (e) {
       toast(e.message, true);
     }
@@ -790,6 +867,8 @@
           show_datetime: !!$("#pt_show_datetime")?.checked,
           show_waiting_count: !!$("#pt_show_waiting")?.checked,
           show_eta: !!$("#pt_show_eta")?.checked,
+          logo_url: ($("#pt_logo")?.value || "").trim(),
+          social_line: ($("#pt_social")?.value || "").trim(),
         },
       });
       printDirty = false;
@@ -797,6 +876,11 @@
     } catch (e) {
       toast(e.message, true);
     }
+  });
+
+  $("#btnTestSound")?.addEventListener("click", () => {
+    playCallSound($("#callSound")?.value || "chime");
+    toast("Playing call sound");
   });
 
   $("#btnTestAnnounce")?.addEventListener("click", async () => {
@@ -809,6 +893,11 @@
         announce_enabled: true,
         announce_entity: entity,
         announce_tts_entity: ($("#announceTtsEntity")?.value || "").trim(),
+        announce_templates: {
+          with_cashier: ($("#announceWithCashier")?.value || "").trim(),
+          without_cashier: ($("#announceWithoutCashier")?.value || "").trim(),
+        },
+        call_sound: $("#callSound")?.value || "chime",
       });
       adminDirty = false;
       await doAction("test_announce", {});
@@ -825,6 +914,11 @@
         announce_enabled: !!$("#announceEnabled")?.checked,
         announce_entity: ($("#announceEntity")?.value || "").trim(),
         announce_tts_entity: ($("#announceTtsEntity")?.value || "").trim(),
+        announce_templates: {
+          with_cashier: ($("#announceWithCashier")?.value || "").trim(),
+          without_cashier: ($("#announceWithoutCashier")?.value || "").trim(),
+        },
+        call_sound: $("#callSound")?.value || "chime",
       });
       adminDirty = false;
       unlocked = true;

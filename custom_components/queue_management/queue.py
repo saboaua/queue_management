@@ -50,7 +50,16 @@ DEFAULT_PRINT_TEMPLATE = {
     "footer": "Thank you for your patience",
     "extra_line": "",
     "paper_width": "58mm",
+    "logo_url": "",
+    "social_line": "",
 }
+
+DEFAULT_ANNOUNCE_TEMPLATES = {
+    "with_cashier": "Ticket {ticket}, please go to {cashier}",
+    "without_cashier": "Ticket {ticket}, please proceed",
+}
+
+DEFAULT_CALL_SOUND = "chime"
 
 DEFAULT_CASHIERS = [
     {"id": "cashier_1", "name": "Cashier 1", "enabled": True},
@@ -196,6 +205,8 @@ class QueueManager:
         self.announce_enabled: bool = False
         self.announce_entity: str = ""
         self.announce_tts_entity: str = ""
+        self.announce_templates: dict[str, str] = dict(DEFAULT_ANNOUNCE_TEMPLATES)
+        self.call_sound: str = DEFAULT_CALL_SOUND
         self._loaded = False
 
     async def async_load(self) -> None:
@@ -226,6 +237,8 @@ class QueueManager:
             self.announce_enabled = bool(data.get("announce_enabled", False))
             self.announce_entity = str(data.get("announce_entity") or "")
             self.announce_tts_entity = str(data.get("announce_tts_entity") or "")
+            self.announce_templates = {**DEFAULT_ANNOUNCE_TEMPLATES, **(data.get("announce_templates") or {})}
+            self.call_sound = str(data.get("call_sound") or DEFAULT_CALL_SOUND)
         else:
             self.queues[DEFAULT_QUEUE_ID] = Queue(
                 queue_id=DEFAULT_QUEUE_ID, name=DEFAULT_QUEUE_NAME
@@ -262,6 +275,8 @@ class QueueManager:
             "announce_enabled": self.announce_enabled,
             "announce_entity": self.announce_entity,
             "announce_tts_entity": self.announce_tts_entity,
+            "announce_templates": self.announce_templates,
+            "call_sound": self.call_sound,
         }
         await self._store.async_save(data)
 
@@ -529,12 +544,17 @@ class QueueManager:
     async def _async_announce(self, event: dict[str, Any]) -> None:
         if not self.announce_enabled or not self.announce_entity:
             return
-        ticket = event.get("ticket_display") or event.get("ticket")
-        cashier = event.get("cashier_name")
+        ticket = str(event.get("ticket_display") or event.get("ticket") or "")
+        cashier = event.get("cashier_name") or ""
+        tpl = self.announce_templates or DEFAULT_ANNOUNCE_TEMPLATES
         if cashier:
-            message = f"Ticket {ticket}, please go to {cashier}"
+            message = (tpl.get("with_cashier") or DEFAULT_ANNOUNCE_TEMPLATES["with_cashier"]).format(
+                ticket=ticket, cashier=cashier
+            )
         else:
-            message = f"Ticket {ticket}, please proceed"
+            message = (tpl.get("without_cashier") or DEFAULT_ANNOUNCE_TEMPLATES["without_cashier"]).format(
+                ticket=ticket, cashier=cashier
+            )
 
         media = self.announce_entity
         tts_entity = self._pick_tts_entity()
@@ -793,7 +813,9 @@ class QueueManager:
         if "announce_entity" in data:
             self.announce_entity = str(data.get("announce_entity") or "").strip()
         if "announce_tts_entity" in data:
-            self.announce_tts_entity = str(data.get("announce_tts_entity") or "").strip()
+            self.announce_tts_entity = str(data.get("announce_tts_entity") or "")
+            self.announce_templates = {**DEFAULT_ANNOUNCE_TEMPLATES, **(data.get("announce_templates") or {})}
+            self.call_sound = str(data.get("call_sound") or DEFAULT_CALL_SOUND).strip()
         await self.async_save()
         self._notify()
 
@@ -805,6 +827,8 @@ class QueueManager:
     def build_print_payload(self, event: dict[str, Any]) -> dict[str, Any]:
         tpl = self.print_template
         lines: list[str] = []
+        if tpl.get("logo_url"):
+            lines.append(f"[LOGO] {tpl['logo_url']}")
         if tpl.get("title"):
             lines.append(str(tpl["title"]))
         if tpl.get("header"):
@@ -833,17 +857,23 @@ class QueueManager:
             lines.append(str(tpl["extra_line"]))
         if tpl.get("footer"):
             lines.append(str(tpl["footer"]))
+        if tpl.get("social_line"):
+            lines.append(str(tpl["social_line"]))
         return {
             "lines": lines,
             "ticket_display": event.get("ticket_display"),
             "queue_id": event.get("queue_id"),
             "queue_name": event.get("queue_name"),
+            "logo_url": tpl.get("logo_url") or "",
+            "social_line": tpl.get("social_line") or "",
             "paper_width": tpl.get("paper_width", "58mm"),
             "template": {
                 "title": tpl.get("title"),
                 "header": tpl.get("header"),
                 "footer": tpl.get("footer"),
                 "extra_line": tpl.get("extra_line"),
+                "logo_url": tpl.get("logo_url"),
+                "social_line": tpl.get("social_line"),
                 "paper_width": tpl.get("paper_width", "58mm"),
             },
         }

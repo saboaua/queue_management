@@ -308,3 +308,94 @@ main { flex: 1; padding: 24px 18px 90px; max-width: 1100px; margin: 0 auto; widt
 }
 .toast.error { background: var(--red); border-color: transparent; }
 code { font-size: .85em; color: #93c5fd; }
+
+/* Secondary / visible outline buttons */
+.btn-secondary {
+  background: var(--card) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  font-weight: 700;
+}
+.btn-secondary:hover {
+  border-color: var(--blue) !important;
+  color: #fff !important;
+  background: var(--blue) !important;
+}
+
+.btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; align-items: center; }
+.btn-row.spaced-top { margin-top: 16px; }
+.card .btn-med { margin-top: 0; }
+
+/* Admin rows – keep checkbox inside card */
+.admin-list { overflow: hidden; }
+.admin-row {
+  display: grid;
+  grid-template-columns: minmax(72px, 0.9fr) minmax(100px, 1.4fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+}
+.admin-row.service-row {
+  grid-template-columns: 44px minmax(56px, 0.7fr) minmax(72px, 1fr) minmax(90px, 1fr) auto auto;
+}
+.admin-row input[type="text"],
+.admin-row select {
+  min-width: 0;
+  max-width: 100%;
+}
+.check-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 6px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.check-wrap input { margin: 0; flex-shrink: 0; }
+
+/* Logo holder for print layout */
+.logo-holder {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 16px;
+  margin: 12px 0 18px;
+  align-items: start;
+}
+@media (max-width: 640px) {
+  .logo-holder { grid-template-columns: 1fr; }
+}
+.logo-preview {
+  width: 140px;
+  height: 140px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.logo-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.logo-placeholder {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+  padding: 8px;
+}
+.logo-fields label { display: block; margin-top: 8px; }
+.logo-fields input { margin-bottom: 4px; }
+
+/* Card labels spacing */
+.card label { display: block; margin-top: 10px; margin-bottom: 4px; color: var(--muted); font-size: 0.85rem; }
+.card label.checkbox { display: flex; margin-top: 10px; }
+.card input, .card select { margin-bottom: 4px; }

@@ -84,6 +84,8 @@ def _state_payload(hass: HomeAssistant, manager: QueueManager) -> dict[str, Any]
             "announce_enabled": manager.announce_enabled,
             "announce_entity": manager.announce_entity,
             "announce_tts_entity": manager.announce_tts_entity,
+            "announce_templates": manager.announce_templates,
+            "call_sound": manager.call_sound,
         },
     }
 

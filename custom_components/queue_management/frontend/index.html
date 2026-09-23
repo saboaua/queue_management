@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Queue Management</title>
-  <link rel="stylesheet" href="/queue_management/static/style.css?v=152" />
+  <link rel="stylesheet" href="/queue_management/static/style.css?v=160" />
 </head>
 <body>
   <div id="app">
@@ -170,7 +170,7 @@
             </div>
             <div class="btn-row">
               <button id="btnSaveTheme" class="btn-med btn-blue" type="button">Save theme</button>
-              <button id="btnResetTheme" class="btn-med" type="button">Reset defaults</button>
+              <button id="btnResetTheme" class="btn-med btn-secondary" type="button">Reset defaults</button>
             </div>
           </div>
 
@@ -187,9 +187,26 @@
             <select id="announceTtsEntity" data-admin>
               <option value="">— Auto (first available) —</option>
             </select>
-            <p class="muted" id="ttsEngineHint">If this list is empty, add a TTS integration in Home Assistant (Piper, Google, Cloud…). Spoken on <strong>Call Next</strong>.</p>
-            <button id="btnSaveSecurity" class="btn-med btn-blue" type="button">Save security</button>
-            <button id="btnTestAnnounce" class="btn-med" type="button">Test announcement</button>
+            <p class="muted" id="ttsEngineHint">Spoken on Call Next.</p>
+            <label>Message with cashier</label>
+            <input id="announceWithCashier" type="text" data-admin placeholder="Ticket {ticket}, please go to {cashier}" />
+            <label>Message without cashier</label>
+            <input id="announceWithoutCashier" type="text" data-admin placeholder="Ticket {ticket}, please proceed" />
+            <p class="muted">Placeholders: <code>{ticket}</code> <code>{cashier}</code></p>
+            <label for="callSound">Calling desk sound</label>
+            <select id="callSound" data-admin>
+              <option value="none">None</option>
+              <option value="beep">Beep</option>
+              <option value="chime">Chime</option>
+              <option value="double">Double beep</option>
+              <option value="alert">Alert</option>
+            </select>
+            <p class="muted">Plays on this computer/tablet when Call Next is pressed.</p>
+            <div class="btn-row">
+              <button id="btnSaveSecurity" class="btn-med btn-blue" type="button">Save security</button>
+              <button id="btnTestAnnounce" class="btn-med btn-secondary" type="button">Test announcement</button>
+              <button id="btnTestSound" class="btn-med btn-secondary" type="button">Test sound</button>
+            </div>
           </div>
 
           <div class="card">
@@ -203,12 +220,27 @@
             <input id="newQueueName" type="text" placeholder="VIP Counter" data-admin />
             <label>Prefix</label>
             <input id="newQueuePrefix" type="text" placeholder="V" data-admin />
-            <button id="btnCreateQueue" class="btn-med btn-green" type="button">Create queue</button>
+            <div class="btn-row spaced-top">
+              <button id="btnCreateQueue" class="btn-med btn-green" type="button">Create queue</button>
+            </div>
           </div>
 
           <div class="card full">
             <h3>Ticket print layout</h3>
             <p class="muted">Printed content + HA event <code>queue_management_ticket_issued</code> → <code>print.lines</code></p>
+            <div class="logo-holder">
+              <div class="logo-preview" id="logoPreview">
+                <span class="logo-placeholder">Logo preview</span>
+                <img id="logoImg" alt="Logo" hidden />
+              </div>
+              <div class="logo-fields">
+                <label>Logo URL (shown at top of ticket)</label>
+                <input id="pt_logo" type="url" data-print placeholder="https://example.com/logo.png" />
+                <label>Social media line</label>
+                <input id="pt_social" type="text" data-print placeholder="f @company  |  ig @company  |  web.com" />
+                <p class="muted">Tip: use text or emoji icons, e.g. 👍 Facebook · 📷 Instagram · 🌐 site.com</p>
+              </div>
+            </div>
             <div class="form-grid">
               <div>
                 <label>Title</label>
@@ -267,6 +299,6 @@
     </div>
     <div id="toast" class="toast" hidden></div>
   </div>
-  <script src="/queue_management/static/app.js?v=152"></script>
+  <script src="/queue_management/static/app.js?v=160"></script>
 </body>
 </html>
