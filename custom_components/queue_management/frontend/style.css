@@ -166,8 +166,37 @@ main { flex: 1; padding: 24px 18px 90px; max-width: 1100px; margin: 0 auto; widt
 .mgr-stats .stat-idle .stat-value { color: var(--muted); }
 
 .admin-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
+  align-items: start;
+}
+.admin-grid .card-cashiers,
+.admin-grid .card-services {
+  grid-column: span 1;
+  min-width: 0;
+}
+.admin-grid .card-theme {
+  grid-column: 1 / -1;
+}
+.admin-grid .card-security,
+.admin-grid .card-queues {
+  grid-column: span 1;
+}
+.admin-grid .card.full {
+  grid-column: 1 / -1;
+}
+@media (max-width: 900px) {
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-grid .card-cashiers,
+  .admin-grid .card-services,
+  .admin-grid .card-theme,
+  .admin-grid .card-security,
+  .admin-grid .card-queues {
+    grid-column: 1;
+  }
 }
 .card {
   background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
@@ -399,3 +428,25 @@ code { font-size: .85em; color: #93c5fd; }
 .card label { display: block; margin-top: 10px; margin-bottom: 4px; color: var(--muted); font-size: 0.85rem; }
 .card label.checkbox { display: flex; margin-top: 10px; }
 .card input, .card select { margin-bottom: 4px; }
+
+/* Wider top-row admin lists */
+.card-cashiers .admin-row {
+  grid-template-columns: minmax(100px, 1fr) minmax(140px, 1.5fr) auto auto;
+}
+.card-services .admin-row.service-row {
+  grid-template-columns: 48px minmax(80px, 0.9fr) minmax(110px, 1.2fr) minmax(120px, 1.2fr) auto auto;
+}
+.card-theme .color-grid {
+  grid-template-columns: repeat(4, 1fr);
+  max-width: 640px;
+}
+@media (max-width: 700px) {
+  .card-theme .color-grid { grid-template-columns: 1fr 1fr; }
+  .card-services .admin-row.service-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .card-services .admin-row.service-row .btn-x,
+  .card-services .admin-row.service-row .check-wrap {
+    justify-self: start;
+  }
+}
