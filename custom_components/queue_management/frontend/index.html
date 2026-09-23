@@ -21,7 +21,7 @@
         <button data-mode="admin" class="mode-btn">Admin</button>
       </nav>
       <div class="queue-select-wrap">
-        <select id="queueSelect"></select>
+        <select id="queueSelect" title="Active queue"></select>
       </div>
     </header>
 
@@ -30,25 +30,34 @@
       <section id="mode-reception" class="mode-panel active">
         <div class="hero">
           <h1>Welcome</h1>
-          <p>Please take a number and wait to be called</p>
+          <p>Select a service and take your number</p>
         </div>
+        <div id="serviceButtons" class="service-grid"></div>
         <button id="btnTake" class="btn-huge btn-green">TAKE TICKET</button>
         <div class="ticket-result" id="ticketResult" hidden>
           <div class="label">Your number</div>
           <div class="number" id="ticketNumber">—</div>
+          <div class="eta" id="ticketEta"></div>
           <div class="hint">Please wait for your number to be called</div>
         </div>
         <div class="stats-row">
           <div class="stat"><div class="stat-value" id="rWaiting">0</div><div class="stat-label">Waiting</div></div>
+          <div class="stat"><div class="stat-value" id="rEta">—</div><div class="stat-label">Est. wait</div></div>
           <div class="stat"><div class="stat-value" id="rCurrent">—</div><div class="stat-label">Now Serving</div></div>
         </div>
       </section>
 
       <!-- CALLING DESK -->
       <section id="mode-calling" class="mode-panel">
-        <div class="cashier-pick">
-          <label for="cashierSelect">Serving as</label>
-          <select id="cashierSelect"></select>
+        <div class="cashier-bar">
+          <div class="cashier-pick">
+            <label for="cashierSelect">Serving as</label>
+            <select id="cashierSelect"></select>
+          </div>
+          <div class="cashier-status-btns">
+            <button type="button" id="btnBreak" class="btn-med btn-warn">Go on break</button>
+            <button type="button" id="btnResume" class="btn-med btn-green">Resume</button>
+          </div>
         </div>
         <div class="now-serving-box">
           <div class="label">NOW SERVING</div>
@@ -61,7 +70,7 @@
         </div>
         <div class="stats-row">
           <div class="stat"><div class="stat-value" id="cWaiting">0</div><div class="stat-label">Waiting</div></div>
-          <div class="stat"><div class="stat-value" id="cLast">—</div><div class="stat-label">Last Issued</div></div>
+          <div class="stat"><div class="stat-value" id="cEta">—</div><div class="stat-label">Est. wait</div></div>
           <div class="stat"><div class="stat-value" id="cStatus">idle</div><div class="stat-label">Status</div></div>
         </div>
         <div class="waiting-list-box">
@@ -77,11 +86,14 @@
           <div class="display-number" id="dCurrent">—</div>
           <div class="display-cashier" id="dCashier"></div>
           <div class="display-sub">Please wait for your number</div>
-          <div class="display-waiting">Waiting: <span id="dWaiting">0</span></div>
+          <div class="display-meta">
+            <span>Waiting: <strong id="dWaiting">0</strong></span>
+            <span>Est. wait: <strong id="dEta">—</strong></span>
+          </div>
         </div>
       </section>
 
-      <!-- MANAGER OVERVIEW -->
+      <!-- MANAGER -->
       <section id="mode-manager" class="mode-panel">
         <div class="mgr-header">
           <div>
@@ -92,18 +104,23 @@
         </div>
         <div class="stats-row mgr-stats">
           <div class="stat stat-waiting"><div class="stat-value" id="mWaiting">0</div><div class="stat-label">Total waiting</div></div>
-          <div class="stat stat-busy"><div class="stat-value" id="mServing">0</div><div class="stat-label">Cashiers busy</div></div>
-          <div class="stat stat-idle"><div class="stat-value" id="mIdle">0</div><div class="stat-label">Cashiers idle</div></div>
-          <div class="stat"><div class="stat-value" id="mEnabled">0</div><div class="stat-label">Cashiers open</div></div>
+          <div class="stat stat-busy"><div class="stat-value" id="mServing">0</div><div class="stat-label">Busy</div></div>
+          <div class="stat stat-idle"><div class="stat-value" id="mIdle">0</div><div class="stat-label">Idle</div></div>
+          <div class="stat"><div class="stat-value" id="mBreak">0</div><div class="stat-label">On break</div></div>
+          <div class="stat"><div class="stat-value" id="mAvg">—</div><div class="stat-label">Avg service</div></div>
         </div>
         <div class="admin-grid">
           <div class="card card-busy">
-            <h3>🔴 Busy cashiers</h3>
+            <h3>Busy cashiers</h3>
             <div id="mgrBusy" class="cashier-list"></div>
           </div>
           <div class="card card-idle">
-            <h3>⚪ Idle cashiers</h3>
+            <h3>Idle cashiers</h3>
             <div id="mgrIdle" class="cashier-list"></div>
+          </div>
+          <div class="card">
+            <h3>On break</h3>
+            <div id="mgrBreak" class="cashier-list"></div>
           </div>
           <div class="card full">
             <h3>Queues</h3>
@@ -121,90 +138,118 @@
         <div class="admin-grid">
           <div class="card">
             <h3>Cashiers / counters</h3>
-            <p class="muted">Configure names used on the calling desk and display.</p>
-            <div id="cashierAdminList"></div>
-            <button id="btnAddCashier" class="btn-med btn-green" type="button">+ Add cashier</button>
-            <button id="btnSaveCashiers" class="btn-med btn-blue" type="button">Save cashiers</button>
+            <p class="muted">Names shown on calling desk and display.</p>
+            <div id="cashierAdminList" class="admin-list"></div>
+            <div class="btn-row">
+              <button id="btnAddCashier" class="btn-med btn-green" type="button">+ Add</button>
+              <button id="btnSaveCashiers" class="btn-med btn-blue" type="button">Save cashiers</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Services (reception)</h3>
+            <p class="muted">Buttons shown when taking a ticket.</p>
+            <div id="serviceAdminList" class="admin-list"></div>
+            <div class="btn-row">
+              <button id="btnAddService" class="btn-med btn-green" type="button">+ Add</button>
+              <button id="btnSaveServices" class="btn-med btn-blue" type="button">Save services</button>
+            </div>
           </div>
 
           <div class="card">
             <h3>Theme / colors</h3>
             <div class="color-grid">
-              <label>Background <input type="color" id="theme_bg" /></label>
-              <label>Cards <input type="color" id="theme_card" /></label>
-              <label>Text <input type="color" id="theme_text" /></label>
-              <label>Muted <input type="color" id="theme_muted" /></label>
-              <label>Accent <input type="color" id="theme_accent" /></label>
-              <label>Success <input type="color" id="theme_success" /></label>
-              <label>Warning <input type="color" id="theme_warning" /></label>
-              <label>Danger <input type="color" id="theme_danger" /></label>
+              <label>Background <input type="color" id="theme_bg" data-theme /></label>
+              <label>Cards <input type="color" id="theme_card" data-theme /></label>
+              <label>Text <input type="color" id="theme_text" data-theme /></label>
+              <label>Muted <input type="color" id="theme_muted" data-theme /></label>
+              <label>Accent <input type="color" id="theme_accent" data-theme /></label>
+              <label>Success <input type="color" id="theme_success" data-theme /></label>
+              <label>Warning <input type="color" id="theme_warning" data-theme /></label>
+              <label>Danger <input type="color" id="theme_danger" data-theme /></label>
             </div>
-            <button id="btnSaveTheme" class="btn-med btn-blue" type="button">Save theme</button>
-            <button id="btnResetTheme" class="btn-med" type="button">Reset defaults</button>
+            <div class="btn-row">
+              <button id="btnSaveTheme" class="btn-med btn-blue" type="button">Save theme</button>
+              <button id="btnResetTheme" class="btn-med" type="button">Reset defaults</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Security & announcements</h3>
+            <label>Admin / Manager PIN (blank = off)</label>
+            <input id="adminPin" type="password" inputmode="numeric" placeholder="e.g. 1234" data-admin autocomplete="off" />
+            <label class="checkbox"><input type="checkbox" id="announceEnabled" data-admin /> Announce when calling (TTS)</label>
+            <label>Media player entity</label>
+            <input id="announceEntity" type="text" placeholder="media_player.reception" data-admin />
+            <button id="btnSaveSecurity" class="btn-med btn-blue" type="button">Save security</button>
           </div>
 
           <div class="card">
             <h3>Queue actions</h3>
-            <button id="btnReset" class="btn-med btn-danger">Reset current queue</button>
-            <p class="muted">Clears waiting list and resets the counter for the selected queue.</p>
-          </div>
-
-          <div class="card">
-            <h3>Create queue</h3>
-            <label>Queue ID</label>
-            <input id="newQueueId" type="text" placeholder="vip" />
+            <button id="btnReset" class="btn-med btn-danger" type="button">Reset current queue</button>
+            <p class="muted">Clears waiting list and counter for the selected queue.</p>
+            <hr class="sep" />
+            <label>New queue ID</label>
+            <input id="newQueueId" type="text" placeholder="vip" data-admin />
             <label>Display name</label>
-            <input id="newQueueName" type="text" placeholder="VIP Counter" />
+            <input id="newQueueName" type="text" placeholder="VIP Counter" data-admin />
             <label>Prefix</label>
-            <input id="newQueuePrefix" type="text" placeholder="V" />
-            <button id="btnCreateQueue" class="btn-med btn-green">Create queue</button>
+            <input id="newQueuePrefix" type="text" placeholder="V" data-admin />
+            <button id="btnCreateQueue" class="btn-med btn-green" type="button">Create queue</button>
           </div>
-
 
           <div class="card full">
             <h3>Ticket print layout</h3>
-            <p class="muted">What is printed when a ticket is taken. Also sent on the Home Assistant event <code>queue_management_ticket_issued</code> as <code>print</code>.</p>
-            <label>Title</label>
-            <input id="pt_title" type="text" placeholder="QUEUE TICKET" />
-            <label>Header line</label>
-            <input id="pt_header" type="text" placeholder="Please wait for your number" />
-            <label>Footer line</label>
-            <input id="pt_footer" type="text" placeholder="Thank you for your patience" />
-            <label>Extra line</label>
-            <input id="pt_extra" type="text" placeholder="Optional custom text" />
-            <label>Paper width</label>
-            <select id="pt_paper">
-              <option value="58mm">58mm</option>
-              <option value="80mm">80mm</option>
-            </select>
-            <div class="checkbox-row">
-              <label class="checkbox"><input type="checkbox" id="pt_show_number" /> Show ticket number</label>
-              <label class="checkbox"><input type="checkbox" id="pt_show_queue" /> Show queue name</label>
-              <label class="checkbox"><input type="checkbox" id="pt_show_datetime" /> Show date/time</label>
-              <label class="checkbox"><input type="checkbox" id="pt_show_waiting" /> Show waiting ahead count</label>
-            </div>
-            <div class="print-preview">
-              <div class="preview-label">Preview</div>
-              <pre id="pt_preview"></pre>
+            <p class="muted">Printed content + HA event <code>queue_management_ticket_issued</code> → <code>print.lines</code></p>
+            <div class="form-grid">
+              <div>
+                <label>Title</label>
+                <input id="pt_title" type="text" data-print />
+                <label>Header</label>
+                <input id="pt_header" type="text" data-print />
+                <label>Footer</label>
+                <input id="pt_footer" type="text" data-print />
+                <label>Extra line</label>
+                <input id="pt_extra" type="text" data-print />
+                <label>Paper width</label>
+                <select id="pt_paper" data-print>
+                  <option value="58mm">58mm</option>
+                  <option value="80mm">80mm</option>
+                </select>
+              </div>
+              <div>
+                <div class="checkbox-col">
+                  <label class="checkbox"><input type="checkbox" id="pt_show_number" data-print /> Show ticket number</label>
+                  <label class="checkbox"><input type="checkbox" id="pt_show_queue" data-print /> Show queue name</label>
+                  <label class="checkbox"><input type="checkbox" id="pt_show_datetime" data-print /> Show date/time</label>
+                  <label class="checkbox"><input type="checkbox" id="pt_show_waiting" data-print /> Show waiting ahead</label>
+                  <label class="checkbox"><input type="checkbox" id="pt_show_eta" data-print /> Show estimated wait</label>
+                </div>
+                <div class="print-preview">
+                  <div class="preview-label">Preview</div>
+                  <pre id="pt_preview"></pre>
+                </div>
+              </div>
             </div>
             <button id="btnSavePrint" class="btn-med btn-blue" type="button">Save print layout</button>
-          </div>
-
-          <div class="card">
-            <h3>Printer & announcements</h3>
-            <label class="checkbox"><input type="checkbox" id="printerEnabled" /> Enable printer integration</label>
-            <label>Printer name / entity</label>
-            <input id="printerName" type="text" placeholder="printer.receipt" />
-            <label class="checkbox"><input type="checkbox" id="announceEnabled" /> Enable voice announcement</label>
-            <label>Media player entity</label>
-            <input id="announceEntity" type="text" placeholder="media_player.reception" />
-            <button id="btnSaveSettings" class="btn-med btn-blue">Save settings</button>
           </div>
         </div>
       </section>
     </main>
 
-    <button type="button" id="fabMenu" class="fab" title="Switch mode">☰</button>
+    <div id="pinModal" class="modal" hidden>
+      <div class="modal-card">
+        <h3>Enter PIN</h3>
+        <input id="pinInput" type="password" inputmode="numeric" placeholder="PIN" autocomplete="off" />
+        <div class="btn-row">
+          <button type="button" id="pinCancel" class="btn-med">Cancel</button>
+          <button type="button" id="pinOk" class="btn-med btn-blue">Unlock</button>
+        </div>
+        <p id="pinError" class="error-text" hidden>Incorrect PIN</p>
+      </div>
+    </div>
+
+    <button type="button" id="fabMenu" class="fab" title="Menu">☰</button>
     <div id="fabModes" class="fab-modes">
       <button type="button" class="mode-btn" data-mode="reception">Reception</button>
       <button type="button" class="mode-btn" data-mode="calling">Calling</button>

@@ -26,10 +26,11 @@ _LOGGER = logging.getLogger(__name__)
 
 SIGNAL_UPDATE = f"{DOMAIN}_update"
 MAX_HISTORY = 200
+MAX_SERVICE_SAMPLES = 50
 
 DEFAULT_THEME = {
-    "bg": "#0f172a",
-    "card": "#1e293b",
+    "bg": "#0b1220",
+    "card": "#151d2e",
     "text": "#f1f5f9",
     "muted": "#94a3b8",
     "accent": "#3b82f6",
@@ -44,6 +45,7 @@ DEFAULT_PRINT_TEMPLATE = {
     "show_queue_name": True,
     "show_datetime": True,
     "show_waiting_count": True,
+    "show_eta": True,
     "header": "Please wait for your number",
     "footer": "Thank you for your patience",
     "extra_line": "",
@@ -56,19 +58,22 @@ DEFAULT_CASHIERS = [
     {"id": "cashier_3", "name": "Cashier 3", "enabled": True},
 ]
 
+DEFAULT_SERVICES = [
+    {"id": "general", "name": "General", "queue_id": "main", "enabled": True, "icon": "🎫"},
+]
+
 
 @dataclass
 class Cashier:
-    """A service point / cashier / counter."""
-
     id: str
     name: str
     enabled: bool = True
+    status: str = "idle"  # idle | serving | break
     current_ticket: int = 0
     current_ticket_display: str = ""
     queue_id: str = DEFAULT_QUEUE_ID
-    status: str = "idle"  # idle | serving
     last_call_at: str | None = None
+    call_started_at: str | None = None
     served_count: int = 0
 
     def to_dict(self) -> dict[str, Any]:
@@ -76,23 +81,47 @@ class Cashier:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Cashier":
+        status = data.get("status", "idle")
+        if status not in ("idle", "serving", "break"):
+            status = "idle"
         return cls(
             id=data["id"],
             name=data.get("name", data["id"]),
             enabled=data.get("enabled", True),
+            status=status,
             current_ticket=data.get("current_ticket", 0),
             current_ticket_display=data.get("current_ticket_display", ""),
             queue_id=data.get("queue_id", DEFAULT_QUEUE_ID),
-            status=data.get("status", "idle"),
             last_call_at=data.get("last_call_at"),
+            call_started_at=data.get("call_started_at"),
             served_count=data.get("served_count", 0),
         )
 
 
 @dataclass
-class Queue:
-    """Represents a single queue."""
+class ServiceType:
+    id: str
+    name: str
+    queue_id: str = DEFAULT_QUEUE_ID
+    enabled: bool = True
+    icon: str = "🎫"
 
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ServiceType":
+        return cls(
+            id=data["id"],
+            name=data.get("name", data["id"]),
+            queue_id=data.get("queue_id", DEFAULT_QUEUE_ID),
+            enabled=data.get("enabled", True),
+            icon=data.get("icon", "🎫"),
+        )
+
+
+@dataclass
+class Queue:
     queue_id: str
     name: str
     prefix: str = ""
@@ -102,6 +131,8 @@ class Queue:
     current_cashier_id: str | None = None
     current_cashier_name: str | None = None
     waiting: list[int] = field(default_factory=list)
+    # ticket -> issued_iso for ETA / wait metrics
+    issued_at: dict[str, str] = field(default_factory=dict)
     created_at: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
@@ -124,10 +155,14 @@ class Queue:
         return "serving"
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        return d
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Queue":
+        issued = data.get("issued_at") or {}
+        # keys as str
+        issued_at = {str(k): v for k, v in issued.items()}
         return cls(
             queue_id=data["queue_id"],
             name=data["name"],
@@ -138,6 +173,7 @@ class Queue:
             current_cashier_id=data.get("current_cashier_id"),
             current_cashier_name=data.get("current_cashier_name"),
             waiting=list(data.get("waiting", [])),
+            issued_at=issued_at,
             created_at=data.get(
                 "created_at", datetime.now(timezone.utc).isoformat()
             ),
@@ -145,16 +181,20 @@ class Queue:
 
 
 class QueueManager:
-    """Manages queues, cashiers, theme and history."""
-
     def __init__(self, hass: HomeAssistant) -> None:
         self.hass = hass
         self._store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
         self.queues: dict[str, Queue] = {}
         self.cashiers: dict[str, Cashier] = {}
+        self.services: dict[str, ServiceType] = {}
         self.theme: dict[str, str] = dict(DEFAULT_THEME)
         self.print_template: dict[str, Any] = dict(DEFAULT_PRINT_TEMPLATE)
         self.history: list[dict[str, Any]] = []
+        self.admin_pin: str = ""
+        self.avg_service_seconds: float = 180.0  # default 3 min
+        self._service_samples: list[float] = []
+        self.announce_enabled: bool = False
+        self.announce_entity: str = ""
         self._loaded = False
 
     async def async_load(self) -> None:
@@ -167,32 +207,58 @@ class QueueManager:
             for cdata in data.get("cashiers", []):
                 c = Cashier.from_dict(cdata)
                 self.cashiers[c.id] = c
+            for sdata in data.get("services", []):
+                s = ServiceType.from_dict(sdata)
+                self.services[s.id] = s
             self.theme = {**DEFAULT_THEME, **(data.get("theme") or {})}
-            self.print_template = {**DEFAULT_PRINT_TEMPLATE, **(data.get("print_template") or {})}
-            _LOGGER.debug("Loaded %d queues, %d cashiers", len(self.queues), len(self.cashiers))
+            self.print_template = {
+                **DEFAULT_PRINT_TEMPLATE,
+                **(data.get("print_template") or {}),
+            }
+            self.admin_pin = str(data.get("admin_pin") or "")
+            self.avg_service_seconds = float(
+                data.get("avg_service_seconds") or 180.0
+            )
+            self._service_samples = list(data.get("service_samples") or [])[
+                -MAX_SERVICE_SAMPLES:
+            ]
+            self.announce_enabled = bool(data.get("announce_enabled", False))
+            self.announce_entity = str(data.get("announce_entity") or "")
         else:
             self.queues[DEFAULT_QUEUE_ID] = Queue(
-                queue_id=DEFAULT_QUEUE_ID,
-                name=DEFAULT_QUEUE_NAME,
+                queue_id=DEFAULT_QUEUE_ID, name=DEFAULT_QUEUE_NAME
             )
-            await self.async_save()
 
         if not self.cashiers:
             for c in DEFAULT_CASHIERS:
                 self.cashiers[c["id"]] = Cashier(
                     id=c["id"], name=c["name"], enabled=c["enabled"]
                 )
-            await self.async_save()
-
+        if not self.services:
+            for s in DEFAULT_SERVICES:
+                self.services[s["id"]] = ServiceType(
+                    id=s["id"],
+                    name=s["name"],
+                    queue_id=s["queue_id"],
+                    enabled=s["enabled"],
+                    icon=s["icon"],
+                )
+        await self.async_save()
         self._loaded = True
 
     async def async_save(self) -> None:
         data = {
             "queues": [q.to_dict() for q in self.queues.values()],
             "cashiers": [c.to_dict() for c in self.cashiers.values()],
+            "services": [s.to_dict() for s in self.services.values()],
             "theme": self.theme,
             "print_template": self.print_template,
             "history": self.history[-MAX_HISTORY:],
+            "admin_pin": self.admin_pin,
+            "avg_service_seconds": self.avg_service_seconds,
+            "service_samples": self._service_samples[-MAX_SERVICE_SAMPLES:],
+            "announce_enabled": self.announce_enabled,
+            "announce_entity": self.announce_entity,
         }
         await self._store.async_save(data)
 
@@ -210,45 +276,72 @@ class QueueManager:
             return None
         return self.cashiers.get(cashier_id)
 
-    def overview(self) -> dict[str, Any]:
-        """Manager live overview."""
-        total_waiting = sum(q.waiting_count for q in self.queues.values())
-        total_serving = sum(1 for c in self.cashiers.values() if c.status == "serving")
-        idle_cashiers = [
-            {"id": c.id, "name": c.name}
+    def estimate_wait_seconds(self, queue_id: str | None = None) -> int:
+        q = self.get_queue(queue_id)
+        if not q or not q.waiting:
+            return 0
+        active = sum(
+            1
             for c in self.cashiers.values()
-            if c.enabled and c.status == "idle"
-        ]
-        busy_cashiers = [
-            {
-                "id": c.id,
-                "name": c.name,
-                "ticket": c.current_ticket_display,
-                "ticket_raw": c.current_ticket,
-                "queue_id": c.queue_id,
-                "last_call_at": c.last_call_at,
-                "served_count": c.served_count,
-            }
+            if c.enabled and c.status in ("idle", "serving")
+        )
+        active = max(1, active)
+        return int(round((q.waiting_count * self.avg_service_seconds) / active))
+
+    def estimate_wait_display(self, queue_id: str | None = None) -> str:
+        secs = self.estimate_wait_seconds(queue_id)
+        if secs <= 0:
+            return "—"
+        mins = max(1, int(round(secs / 60)))
+        if mins < 60:
+            return f"~{mins} min"
+        h, m = divmod(mins, 60)
+        return f"~{h}h {m}m" if m else f"~{h}h"
+
+    def overview(self) -> dict[str, Any]:
+        total_waiting = sum(q.waiting_count for q in self.queues.values())
+        busy = [
+            c
             for c in self.cashiers.values()
             if c.enabled and c.status == "serving"
         ]
-        disabled = [
-            {"id": c.id, "name": c.name}
+        idle = [
+            c
             for c in self.cashiers.values()
-            if not c.enabled
+            if c.enabled and c.status == "idle"
+        ]
+        on_break = [
+            c
+            for c in self.cashiers.values()
+            if c.enabled and c.status == "break"
         ]
         return {
             "total_waiting": total_waiting,
-            "total_serving": total_serving,
+            "total_serving": len(busy),
+            "avg_service_seconds": int(self.avg_service_seconds),
+            "avg_service_display": self._fmt_secs(self.avg_service_seconds),
             "cashiers_enabled": sum(1 for c in self.cashiers.values() if c.enabled),
-            "cashiers_idle": idle_cashiers,
-            "cashiers_busy": busy_cashiers,
-            "cashiers_disabled": disabled,
+            "cashiers_busy": [
+                {
+                    "id": c.id,
+                    "name": c.name,
+                    "ticket": c.current_ticket_display,
+                    "ticket_raw": c.current_ticket,
+                    "queue_id": c.queue_id,
+                    "last_call_at": c.last_call_at,
+                    "served_count": c.served_count,
+                }
+                for c in busy
+            ],
+            "cashiers_idle": [{"id": c.id, "name": c.name} for c in idle],
+            "cashiers_break": [{"id": c.id, "name": c.name} for c in on_break],
             "queues": [
                 {
                     "queue_id": q.queue_id,
                     "name": q.name,
                     "waiting": q.waiting_count,
+                    "eta": self.estimate_wait_display(q.queue_id),
+                    "eta_seconds": self.estimate_wait_seconds(q.queue_id),
                     "current_display": q.format_ticket(q.current) if q.current else "—",
                     "current_cashier_name": q.current_cashier_name,
                     "status": q.status,
@@ -256,6 +349,13 @@ class QueueManager:
                 for q in self.queues.values()
             ],
         }
+
+    @staticmethod
+    def _fmt_secs(secs: float) -> str:
+        m = int(round(secs / 60))
+        if m < 1:
+            return f"{int(secs)}s"
+        return f"{m} min"
 
     async def async_create_queue(
         self,
@@ -289,7 +389,15 @@ class QueueManager:
         await self.async_save()
         self._notify()
 
-    async def async_take_ticket(self, queue_id: str | None = None) -> dict[str, Any]:
+    async def async_take_ticket(
+        self, queue_id: str | None = None, service_id: str | None = None
+    ) -> dict[str, Any]:
+        if service_id:
+            svc = self.services.get(service_id)
+            if not svc or not svc.enabled:
+                raise ValueError("Service not available")
+            queue_id = svc.queue_id
+
         q = self.get_queue(queue_id)
         if not q:
             raise ValueError(f"Queue '{queue_id or DEFAULT_QUEUE_ID}' not found")
@@ -297,20 +405,26 @@ class QueueManager:
         next_num = q.last_issued + 1
         q.last_issued = next_num
         q.waiting.append(next_num)
+        now = datetime.now(timezone.utc).isoformat()
+        q.issued_at[str(next_num)] = now
         ticket_str = q.format_ticket(next_num)
+        eta = self.estimate_wait_display(q.queue_id)
         event_data = {
             "queue_id": q.queue_id,
             "queue_name": q.name,
             "ticket": next_num,
             "ticket_display": ticket_str,
             "waiting_count": q.waiting_count,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "eta": eta,
+            "eta_seconds": self.estimate_wait_seconds(q.queue_id),
+            "service_id": service_id,
+            "service_name": self.services[service_id].name if service_id and service_id in self.services else None,
+            "timestamp": now,
         }
         self.add_history({**event_data, "type": "issued"})
+        event_data["print"] = self.build_print_payload(event_data)
         await self.async_save()
         self._notify()
-        print_payload = self.build_print_payload(event_data)
-        event_data["print"] = print_payload
         self.hass.bus.async_fire(EVENT_TICKET_ISSUED, event_data)
         return event_data
 
@@ -325,45 +439,9 @@ class QueueManager:
         if not q.waiting:
             return None
 
-        cashier = self.get_cashier(cashier_id) if cashier_id else None
-        if cashier_id and not cashier:
-            raise ValueError(f"Cashier '{cashier_id}' not found")
-        if cashier and not cashier.enabled:
-            raise ValueError(f"Cashier '{cashier.name}' is disabled")
-
+        cashier = self._require_callable_cashier(cashier_id)
         next_num = q.waiting.pop(0)
-        q.current = next_num
-        ticket_str = q.format_ticket(next_num)
-        now = datetime.now(timezone.utc).isoformat()
-
-        if cashier:
-            # Free previous ticket on this cashier if any
-            cashier.current_ticket = next_num
-            cashier.current_ticket_display = ticket_str
-            cashier.queue_id = q.queue_id
-            cashier.status = "serving"
-            cashier.last_call_at = now
-            q.current_cashier_id = cashier.id
-            q.current_cashier_name = cashier.name
-        else:
-            q.current_cashier_id = None
-            q.current_cashier_name = None
-
-        event_data = {
-            "queue_id": q.queue_id,
-            "queue_name": q.name,
-            "ticket": next_num,
-            "ticket_display": ticket_str,
-            "waiting_count": q.waiting_count,
-            "cashier_id": cashier.id if cashier else None,
-            "cashier_name": cashier.name if cashier else None,
-            "timestamp": now,
-        }
-        self.add_history({**event_data, "type": "called"})
-        await self.async_save()
-        self._notify()
-        self.hass.bus.async_fire(EVENT_TICKET_CALLED, event_data)
-        return event_data
+        return await self._assign_call(q, next_num, cashier)
 
     async def async_call_ticket(
         self,
@@ -374,13 +452,26 @@ class QueueManager:
         q = self.get_queue(queue_id)
         if not q:
             raise ValueError(f"Queue '{queue_id or DEFAULT_QUEUE_ID}' not found")
-
-        cashier = self.get_cashier(cashier_id) if cashier_id else None
-        if cashier_id and not cashier:
-            raise ValueError(f"Cashier '{cashier_id}' not found")
-
+        cashier = self._require_callable_cashier(cashier_id)
         if ticket in q.waiting:
             q.waiting.remove(ticket)
+        return await self._assign_call(q, ticket, cashier)
+
+    def _require_callable_cashier(self, cashier_id: str | None) -> Cashier | None:
+        if not cashier_id:
+            return None
+        cashier = self.get_cashier(cashier_id)
+        if not cashier:
+            raise ValueError(f"Cashier '{cashier_id}' not found")
+        if not cashier.enabled:
+            raise ValueError(f"Cashier '{cashier.name}' is disabled")
+        if cashier.status == "break":
+            raise ValueError(f"Cashier '{cashier.name}' is on break")
+        return cashier
+
+    async def _assign_call(
+        self, q: Queue, ticket: int, cashier: Cashier | None
+    ) -> dict[str, Any]:
         q.current = ticket
         ticket_str = q.format_ticket(ticket)
         now = datetime.now(timezone.utc).isoformat()
@@ -391,6 +482,7 @@ class QueueManager:
             cashier.queue_id = q.queue_id
             cashier.status = "serving"
             cashier.last_call_at = now
+            cashier.call_started_at = now
             q.current_cashier_id = cashier.id
             q.current_cashier_name = cashier.name
         else:
@@ -411,14 +503,47 @@ class QueueManager:
         await self.async_save()
         self._notify()
         self.hass.bus.async_fire(EVENT_TICKET_CALLED, event_data)
+        await self._async_announce(event_data)
         return event_data
+
+    async def _async_announce(self, event: dict[str, Any]) -> None:
+        if not self.announce_enabled or not self.announce_entity:
+            return
+        ticket = event.get("ticket_display") or event.get("ticket")
+        cashier = event.get("cashier_name")
+        if cashier:
+            message = f"Ticket {ticket}, please go to {cashier}"
+        else:
+            message = f"Ticket {ticket}, please proceed"
+        try:
+            await self.hass.services.async_call(
+                "tts",
+                "speak",
+                {
+                    "media_player_entity_id": self.announce_entity,
+                    "message": message,
+                },
+                blocking=False,
+            )
+        except Exception:
+            try:
+                await self.hass.services.async_call(
+                    "tts",
+                    "google_translate_say",
+                    {
+                        "entity_id": self.announce_entity,
+                        "message": message,
+                    },
+                    blocking=False,
+                )
+            except Exception as err:
+                _LOGGER.warning("TTS announce failed: %s", err)
 
     async def async_complete(
         self,
         queue_id: str | None = None,
         cashier_id: str | None = None,
     ) -> None:
-        """Mark current service complete for queue and/or cashier."""
         q = self.get_queue(queue_id)
         cashier = self.get_cashier(cashier_id) if cashier_id else None
 
@@ -427,14 +552,35 @@ class QueueManager:
         if cashier and cashier.current_ticket:
             ticket = cashier.current_ticket
             ticket_display = cashier.current_ticket_display
+            # service time sample
+            if cashier.call_started_at:
+                try:
+                    started = datetime.fromisoformat(cashier.call_started_at)
+                    if started.tzinfo is None:
+                        started = started.replace(tzinfo=timezone.utc)
+                    elapsed = (
+                        datetime.now(timezone.utc) - started
+                    ).total_seconds()
+                    if 15 < elapsed < 3600:
+                        self._service_samples.append(elapsed)
+                        self._service_samples = self._service_samples[
+                            -MAX_SERVICE_SAMPLES:
+                        ]
+                        self.avg_service_seconds = sum(self._service_samples) / len(
+                            self._service_samples
+                        )
+                except Exception:
+                    pass
             cashier.served_count += 1
             cashier.current_ticket = 0
             cashier.current_ticket_display = ""
+            cashier.call_started_at = None
             cashier.status = "idle"
         if q and q.current:
             if not ticket:
                 ticket = q.current
                 ticket_display = q.format_ticket(q.current)
+            q.issued_at.pop(str(q.current), None)
             q.current = 0
             q.current_cashier_id = None
             q.current_cashier_name = None
@@ -453,6 +599,29 @@ class QueueManager:
         await self.async_save()
         self._notify()
 
+    async def async_set_cashier_status(
+        self, cashier_id: str, status: str
+    ) -> None:
+        if status not in ("idle", "serving", "break"):
+            raise ValueError("Invalid status")
+        c = self.get_cashier(cashier_id)
+        if not c:
+            raise ValueError("Cashier not found")
+        if status == "break":
+            c.status = "break"
+            c.current_ticket = 0
+            c.current_ticket_display = ""
+            c.call_started_at = None
+        elif status == "idle":
+            c.status = "idle"
+            c.current_ticket = 0
+            c.current_ticket_display = ""
+            c.call_started_at = None
+        else:
+            c.status = "serving"
+        await self.async_save()
+        self._notify()
+
     async def async_reset_queue(self, queue_id: str | None = None) -> None:
         q = self.get_queue(queue_id)
         if not q:
@@ -462,12 +631,14 @@ class QueueManager:
         q.current_cashier_id = None
         q.current_cashier_name = None
         q.waiting.clear()
-        # Clear cashiers bound to this queue
+        q.issued_at.clear()
         for c in self.cashiers.values():
             if c.queue_id == q.queue_id:
                 c.current_ticket = 0
                 c.current_ticket_display = ""
-                c.status = "idle"
+                c.call_started_at = None
+                if c.status == "serving":
+                    c.status = "idle"
         self.add_history(
             {"type": "reset", "queue_id": q.queue_id, "queue_name": q.name}
         )
@@ -483,29 +654,53 @@ class QueueManager:
         )
 
     async def async_save_cashiers(self, cashiers: list[dict[str, Any]]) -> None:
-        """Replace cashier list from admin UI."""
         new_map: dict[str, Cashier] = {}
         for item in cashiers:
             cid = str(item.get("id") or "").strip()
-            name = str(item.get("name") or "").strip()
+            name = str(item.get("name") or "").trim()
             if not cid or not name:
                 continue
             existing = self.cashiers.get(cid)
+            status = existing.status if existing else "idle"
             c = Cashier(
                 id=cid,
                 name=name,
                 enabled=bool(item.get("enabled", True)),
+                status=status if status in ("idle", "serving", "break") else "idle",
                 current_ticket=existing.current_ticket if existing else 0,
                 current_ticket_display=existing.current_ticket_display if existing else "",
                 queue_id=existing.queue_id if existing else DEFAULT_QUEUE_ID,
-                status=existing.status if existing else "idle",
                 last_call_at=existing.last_call_at if existing else None,
+                call_started_at=existing.call_started_at if existing else None,
                 served_count=existing.served_count if existing else 0,
             )
             new_map[cid] = c
         if not new_map:
             raise ValueError("At least one cashier is required")
         self.cashiers = new_map
+        await self.async_save()
+        self._notify()
+
+    async def async_save_services(self, services: list[dict[str, Any]]) -> None:
+        new_map: dict[str, ServiceType] = {}
+        for item in services:
+            sid = str(item.get("id") or "").strip().lower().replace(" ", "_")
+            name = str(item.get("name") or "").strip()
+            if not sid or not name:
+                continue
+            qid = str(item.get("queue_id") or DEFAULT_QUEUE_ID)
+            if qid not in self.queues:
+                qid = DEFAULT_QUEUE_ID
+            new_map[sid] = ServiceType(
+                id=sid,
+                name=name,
+                queue_id=qid,
+                enabled=bool(item.get("enabled", True)),
+                icon=str(item.get("icon") or "🎫"),
+            )
+        if not new_map:
+            raise ValueError("At least one service is required")
+        self.services = new_map
         await self.async_save()
         self._notify()
 
@@ -532,22 +727,51 @@ class QueueManager:
         await self.async_save()
         self._notify()
 
+    async def async_save_security(self, data: dict[str, Any]) -> None:
+        if "admin_pin" in data:
+            pin = str(data.get("admin_pin") or "").strip()
+            if pin and (not pin.isdigit() or len(pin) < 4):
+                raise ValueError("PIN must be at least 4 digits or empty to disable")
+            self.admin_pin = pin
+        if "announce_enabled" in data:
+            self.announce_enabled = bool(data["announce_enabled"])
+        if "announce_entity" in data:
+            self.announce_entity = str(data.get("announce_entity") or "").strip()
+        await self.async_save()
+        self._notify()
+
+    def verify_pin(self, pin: str | None) -> bool:
+        if not self.admin_pin:
+            return True
+        return str(pin or "") == self.admin_pin
+
     def build_print_payload(self, event: dict[str, Any]) -> dict[str, Any]:
-        """Build ticket content for printing from template + event."""
         tpl = self.print_template
-        lines = []
+        lines: list[str] = []
         if tpl.get("title"):
             lines.append(str(tpl["title"]))
         if tpl.get("header"):
             lines.append(str(tpl["header"]))
         if tpl.get("show_queue_name") and event.get("queue_name"):
             lines.append(f"Queue: {event['queue_name']}")
+        if event.get("service_name"):
+            lines.append(f"Service: {event['service_name']}")
         if tpl.get("show_number") and event.get("ticket_display"):
             lines.append(f"Number: {event['ticket_display']}")
         if tpl.get("show_waiting_count") and "waiting_count" in event:
-            lines.append(f"Waiting ahead: {max(0, int(event['waiting_count']) - 1)}")
+            lines.append(
+                f"Waiting ahead: {max(0, int(event['waiting_count']) - 1)}"
+            )
+        if tpl.get("show_eta") and event.get("eta") and event.get("eta") != "—":
+            lines.append(f"Est. wait: {event['eta']}")
         if tpl.get("show_datetime"):
-            lines.append(event.get("timestamp") or datetime.now(timezone.utc).isoformat())
+            ts = event.get("timestamp")
+            if ts:
+                try:
+                    dt = datetime.fromisoformat(ts)
+                    lines.append(dt.astimezone().strftime("%Y-%m-%d %H:%M"))
+                except Exception:
+                    lines.append(str(ts))
         if tpl.get("extra_line"):
             lines.append(str(tpl["extra_line"]))
         if tpl.get("footer"):

@@ -5,13 +5,21 @@
   let state = {
     queues: [],
     cashiers: [],
+    services: [],
     theme: {},
+    print_template: {},
     overview: {},
     history: [],
-    settings: {},
+    security: {},
   };
   let currentQueueId = "main";
   let selectedCashierId = localStorage.getItem("qm_cashier") || "";
+  let selectedServiceId = localStorage.getItem("qm_service") || "";
+  let currentMode = "reception";
+  let unlocked = sessionStorage.getItem("qm_unlocked") === "1";
+  let pendingMode = null;
+  let adminDirty = false;
+  let printDirty = false;
 
   async function api(path, options = {}) {
     const res = await fetch(`/api/queue_management/${path}`, {
@@ -55,7 +63,7 @@
     el.classList.toggle("error", isError);
     el.hidden = false;
     clearTimeout(el._t);
-    if (!isError) el._t = setTimeout(() => (el.hidden = true), 3000);
+    if (!isError) el._t = setTimeout(() => (el.hidden = true), 3200);
   }
   function hideToast() {
     const el = $("#toast");
@@ -68,6 +76,10 @@
 
   function enabledCashiers() {
     return (state.cashiers || []).filter((c) => c.enabled);
+  }
+
+  function enabledServices() {
+    return (state.services || []).filter((s) => s.enabled);
   }
 
   function applyTheme(theme) {
@@ -85,14 +97,25 @@
     Object.entries(map).forEach(([k, cssVar]) => {
       if (theme[k]) root.style.setProperty(cssVar, theme[k]);
     });
-    // color inputs
-    ["bg", "card", "text", "muted", "accent", "success", "warning", "danger"].forEach((k) => {
-      const el = document.getElementById(`theme_${k}`);
-      if (el && theme[k]) el.value = theme[k];
-    });
+    if (!adminDirty) {
+      ["bg", "card", "text", "muted", "accent", "success", "warning", "danger"].forEach((k) => {
+        const el = document.getElementById(`theme_${k}`);
+        if (el && theme[k] && document.activeElement !== el) el.value = theme[k];
+      });
+    }
+  }
+
+  function needsPin(mode) {
+    return (mode === "admin" || mode === "manager") && state.security?.pin_enabled && !unlocked;
   }
 
   function setMode(mode) {
+    if (needsPin(mode)) {
+      pendingMode = mode;
+      openPinModal();
+      return;
+    }
+    currentMode = mode;
     $$(".mode-btn").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
     $$(".mode-panel").forEach((p) => p.classList.remove("active"));
     const panel = $(`#mode-${mode}`);
@@ -105,9 +128,60 @@
     }
   }
 
+  function openPinModal() {
+    const m = $("#pinModal");
+    if (!m) return;
+    m.hidden = false;
+    const err = $("#pinError");
+    if (err) err.hidden = true;
+    const input = $("#pinInput");
+    if (input) {
+      input.value = "";
+      setTimeout(() => input.focus(), 50);
+    }
+  }
+  function closePinModal() {
+    const m = $("#pinModal");
+    if (m) m.hidden = true;
+    pendingMode = null;
+  }
+
   function setText(id, val) {
     const el = document.getElementById(id);
     if (el) el.textContent = val;
+  }
+
+  function renderServiceButtons() {
+    const box = $("#serviceButtons");
+    if (!box) return;
+    const list = enabledServices();
+    if (!list.length) {
+      box.innerHTML = "";
+      return;
+    }
+    if (!selectedServiceId || !list.find((s) => s.id === selectedServiceId)) {
+      selectedServiceId = list[0].id;
+    }
+    box.innerHTML = list
+      .map(
+        (s) =>
+          `<button type="button" class="service-btn ${
+            s.id === selectedServiceId ? "active" : ""
+          }" data-service="${s.id}"><span class="svc-icon">${s.icon || "🎫"}</span><span class="svc-name">${
+            s.name
+          }</span></button>`
+      )
+      .join("");
+    box.querySelectorAll("[data-service]").forEach((btn) => {
+      btn.onclick = () => {
+        selectedServiceId = btn.getAttribute("data-service");
+        localStorage.setItem("qm_service", selectedServiceId);
+        const svc = list.find((s) => s.id === selectedServiceId);
+        if (svc?.queue_id) currentQueueId = svc.queue_id;
+        renderServiceButtons();
+        render();
+      };
+    });
   }
 
   function renderCashierSelect() {
@@ -115,7 +189,7 @@
     if (!sel) return;
     const list = enabledCashiers();
     if (!list.length) {
-      sel.innerHTML = `<option value="">No cashiers configured</option>`;
+      sel.innerHTML = `<option value="">No cashiers</option>`;
       return;
     }
     if (!selectedCashierId || !list.find((c) => c.id === selectedCashierId)) {
@@ -123,141 +197,128 @@
       localStorage.setItem("qm_cashier", selectedCashierId);
     }
     sel.innerHTML = list
-      .map(
-        (c) =>
-          `<option value="${c.id}" ${c.id === selectedCashierId ? "selected" : ""}>${c.name}${
-            c.status === "serving" ? " (busy)" : ""
-          }</option>`
-      )
+      .map((c) => {
+        const tag =
+          c.status === "break" ? " (break)" : c.status === "serving" ? " (busy)" : "";
+        return `<option value="${c.id}" ${c.id === selectedCashierId ? "selected" : ""}>${c.name}${tag}</option>`;
+      })
       .join("");
   }
 
   function renderCashierAdmin() {
     const box = $("#cashierAdminList");
-    if (!box) return;
+    if (!box || adminDirty) return;
     const list = state.cashiers || [];
     box.innerHTML = list
       .map(
         (c, i) => `
-      <div class="cashier-edit" data-idx="${i}">
-        <input type="text" class="c-id" value="${c.id}" placeholder="id" ${i < 3 ? "" : ""} />
-        <input type="text" class="c-name" value="${c.name}" placeholder="Name" />
-        <label class="checkbox"><input type="checkbox" class="c-en" ${c.enabled ? "checked" : ""}/> On</label>
-        <button type="button" class="btn-x" data-rm="${i}">✕</button>
+      <div class="admin-row" data-idx="${i}">
+        <input type="text" class="c-id" value="${escapeAttr(c.id)}" placeholder="id" />
+        <input type="text" class="c-name" value="${escapeAttr(c.name)}" placeholder="Name" />
+        <label class="check-wrap"><input type="checkbox" class="c-en" ${c.enabled ? "checked" : ""}/><span>On</span></label>
+        <button type="button" class="btn-x" data-rm="${i}" title="Remove">✕</button>
       </div>`
       )
       .join("");
     box.querySelectorAll("[data-rm]").forEach((btn) => {
       btn.onclick = () => {
+        adminDirty = true;
         const idx = +btn.getAttribute("data-rm");
         state.cashiers.splice(idx, 1);
+        adminDirty = false;
         renderCashierAdmin();
       };
     });
+    box.querySelectorAll("input").forEach((inp) => {
+      inp.addEventListener("input", () => {
+        adminDirty = true;
+      });
+    });
   }
 
-  function renderManager() {
-    const ov = state.overview || {};
-    setText("mWaiting", ov.total_waiting ?? 0);
-    setText("mServing", ov.total_serving ?? 0);
-    setText("mIdle", (ov.cashiers_idle || []).length);
-    setText("mEnabled", ov.cashiers_enabled ?? 0);
-    const clock = $("#mgrClock");
-    if (clock) clock.textContent = "Updated " + new Date().toLocaleTimeString();
+  function renderServiceAdmin() {
+    const box = $("#serviceAdminList");
+    if (!box || adminDirty) return;
+    const list = state.services || [];
+    const qopts = (state.queues || [])
+      .map((q) => `<option value="${q.queue_id}">${q.name}</option>`)
+      .join("");
+    box.innerHTML = list
+      .map(
+        (s, i) => `
+      <div class="admin-row service-row" data-idx="${i}">
+        <input type="text" class="s-icon" value="${escapeAttr(s.icon || "🎫")}" title="Icon" />
+        <input type="text" class="s-id" value="${escapeAttr(s.id)}" placeholder="id" />
+        <input type="text" class="s-name" value="${escapeAttr(s.name)}" placeholder="Name" />
+        <select class="s-queue">${qopts.replace(
+          `value="${s.queue_id}"`,
+          `value="${s.queue_id}" selected`
+        )}</select>
+        <label class="check-wrap"><input type="checkbox" class="s-en" ${s.enabled ? "checked" : ""}/><span>On</span></label>
+        <button type="button" class="btn-x" data-rms="${i}">✕</button>
+      </div>`
+      )
+      .join("");
+    // fix selected queue
+    box.querySelectorAll(".service-row").forEach((row, i) => {
+      const sel = row.querySelector(".s-queue");
+      if (sel && list[i]) sel.value = list[i].queue_id;
+    });
+    box.querySelectorAll("[data-rms]").forEach((btn) => {
+      btn.onclick = () => {
+        const idx = +btn.getAttribute("data-rms");
+        state.services.splice(idx, 1);
+        renderServiceAdmin();
+      };
+    });
+    box.querySelectorAll("input,select").forEach((inp) => {
+      inp.addEventListener("input", () => {
+        adminDirty = true;
+      });
+      inp.addEventListener("change", () => {
+        adminDirty = true;
+      });
+    });
+  }
 
-    const busy = $("#mgrBusy");
-    if (busy) {
-      const rows = ov.cashiers_busy || [];
-      busy.innerHTML = rows.length
-        ? rows
-            .map((c) => {
-              const ago = c.last_call_at
-                ? Math.max(0, Math.round((Date.now() - new Date(c.last_call_at).getTime()) / 60000))
-                : null;
-              return `<div class="mgr-cashier busy">
-                <div class="mc-name">${c.name}</div>
-                <div class="mc-ticket">${c.ticket || "—"}</div>
-                <div class="mc-meta">Served today: ${c.served_count || 0}${ago != null ? ` · ${ago} min` : ""}</div>
-              </div>`;
-            })
-            .join("")
-        : `<div class="muted empty-state">No cashiers currently serving</div>`;
-    }
-
-    const idle = $("#mgrIdle");
-    if (idle) {
-      const rows = ov.cashiers_idle || [];
-      idle.innerHTML = rows.length
-        ? rows
-            .map(
-              (c) =>
-                `<div class="mgr-cashier idle">
-                  <div class="mc-name">${c.name}</div>
-                  <div class="mc-ticket muted">Idle</div>
-                  <div class="mc-meta">Available to call next</div>
-                </div>`
-            )
-            .join("")
-        : `<div class="muted empty-state">All open cashiers are busy</div>`;
-    }
-
-    const queues = $("#mgrQueues");
-    if (queues) {
-      queues.innerHTML = (ov.queues || [])
-        .map((q) => {
-          const waitClass = q.waiting > 5 ? "hot" : q.waiting > 0 ? "warm" : "cool";
-          return `<div class="queue-card ${waitClass}">
-            <div class="qc-top">
-              <strong>${q.name}</strong>
-              <span class="badge">${q.status}</span>
-            </div>
-            <div class="qc-metrics">
-              <div><span class="qc-num">${q.waiting}</span><span class="qc-lab">waiting</span></div>
-              <div><span class="qc-num">${q.current_display || "—"}</span><span class="qc-lab">now serving</span></div>
-              <div><span class="qc-num">${q.current_cashier_name || "—"}</span><span class="qc-lab">cashier</span></div>
-            </div>
-          </div>`;
-        })
-        .join("") || `<div class="muted">No queues</div>`;
-    }
-
-    const hist = $("#mgrHistory");
-    if (hist) {
-      hist.innerHTML = (state.history || [])
-        .slice()
-        .reverse()
-        .slice(0, 40)
-        .map((h) => {
-          const time = h.timestamp ? new Date(h.timestamp).toLocaleTimeString() : "";
-          const who = h.cashier_name ? ` → ${h.cashier_name}` : "";
-          const label =
-            h.type === "issued"
-              ? `Issued ${h.ticket_display || ""}`
-              : h.type === "called"
-              ? `Called ${h.ticket_display || ""}${who}`
-              : h.type === "completed"
-              ? `Completed ${h.ticket_display || ""}${who}`
-              : h.type === "reset"
-              ? `Reset ${h.queue_name || ""}`
-              : h.type || "";
-          return `<div class="history-item type-${h.type || ""}"><span><span class="type">${h.type || ""}</span> ${label}</span><span>${time}</span></div>`;
-        })
-        .join("") || "<div class='muted'>No activity yet</div>";
-    }
+  function escapeAttr(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;");
   }
 
   function fillPrintForm() {
+    if (printDirty) return;
     const t = state.print_template || {};
-    if ($("#pt_title")) $("#pt_title").value = t.title || "";
-    if ($("#pt_header")) $("#pt_header").value = t.header || "";
-    if ($("#pt_footer")) $("#pt_footer").value = t.footer || "";
-    if ($("#pt_extra")) $("#pt_extra").value = t.extra_line || "";
-    if ($("#pt_paper")) $("#pt_paper").value = t.paper_width || "58mm";
-    if ($("#pt_show_number")) $("#pt_show_number").checked = t.show_number !== false;
-    if ($("#pt_show_queue")) $("#pt_show_queue").checked = t.show_queue_name !== false;
-    if ($("#pt_show_datetime")) $("#pt_show_datetime").checked = t.show_datetime !== false;
-    if ($("#pt_show_waiting")) $("#pt_show_waiting").checked = t.show_waiting_count !== false;
+    const set = (id, val, isCheck) => {
+      const el = document.getElementById(id);
+      if (!el || document.activeElement === el) return;
+      if (isCheck) el.checked = !!val;
+      else el.value = val ?? "";
+    };
+    set("pt_title", t.title);
+    set("pt_header", t.header);
+    set("pt_footer", t.footer);
+    set("pt_extra", t.extra_line);
+    set("pt_paper", t.paper_width || "58mm");
+    set("pt_show_number", t.show_number !== false, true);
+    set("pt_show_queue", t.show_queue_name !== false, true);
+    set("pt_show_datetime", t.show_datetime !== false, true);
+    set("pt_show_waiting", t.show_waiting_count !== false, true);
+    set("pt_show_eta", t.show_eta !== false, true);
     updatePrintPreview();
+  }
+
+  function fillSecurityForm() {
+    if (adminDirty) return;
+    const s = state.security || {};
+    const pin = $("#adminPin");
+    if (pin && document.activeElement !== pin) pin.value = "";
+    const ae = $("#announceEnabled");
+    if (ae && document.activeElement !== ae) ae.checked = !!s.announce_enabled;
+    const an = $("#announceEntity");
+    if (an && document.activeElement !== an) an.value = s.announce_entity || "";
   }
 
   function updatePrintPreview() {
@@ -273,10 +334,116 @@
     if ($("#pt_show_queue")?.checked) lines.push("Queue: Main Queue");
     if ($("#pt_show_number")?.checked) lines.push("Number: 42");
     if ($("#pt_show_waiting")?.checked) lines.push("Waiting ahead: 3");
+    if ($("#pt_show_eta")?.checked) lines.push("Est. wait: ~6 min");
     if ($("#pt_show_datetime")?.checked) lines.push(new Date().toLocaleString());
     if (extra) lines.push(extra);
     if (footer) lines.push(footer);
     pre.textContent = lines.join("\n");
+  }
+
+  function renderManager() {
+    const ov = state.overview || {};
+    setText("mWaiting", ov.total_waiting ?? 0);
+    setText("mServing", ov.total_serving ?? 0);
+    setText("mIdle", (ov.cashiers_idle || []).length);
+    setText("mBreak", (ov.cashiers_break || []).length);
+    setText("mAvg", ov.avg_service_display || "—");
+    const clock = $("#mgrClock");
+    if (clock) clock.textContent = "Updated " + new Date().toLocaleTimeString();
+
+    const busy = $("#mgrBusy");
+    if (busy) {
+      const rows = ov.cashiers_busy || [];
+      busy.innerHTML = rows.length
+        ? rows
+            .map((c) => {
+              const ago = c.last_call_at
+                ? Math.max(
+                    0,
+                    Math.round((Date.now() - new Date(c.last_call_at).getTime()) / 60000)
+                  )
+                : null;
+              return `<div class="mgr-cashier busy">
+                <div class="mc-name">${c.name}</div>
+                <div class="mc-ticket">${c.ticket || "—"}</div>
+                <div class="mc-meta">Served: ${c.served_count || 0}${
+                ago != null ? ` · ${ago} min` : ""
+              }</div>
+              </div>`;
+            })
+            .join("")
+        : `<div class="muted empty-state">No cashiers serving</div>`;
+    }
+
+    const idle = $("#mgrIdle");
+    if (idle) {
+      const rows = ov.cashiers_idle || [];
+      idle.innerHTML = rows.length
+        ? rows
+            .map(
+              (c) =>
+                `<div class="mgr-cashier idle"><div class="mc-name">${c.name}</div><div class="mc-ticket muted">Idle</div><div class="mc-meta">Ready</div></div>`
+            )
+            .join("")
+        : `<div class="muted empty-state">None idle</div>`;
+    }
+
+    const br = $("#mgrBreak");
+    if (br) {
+      const rows = ov.cashiers_break || [];
+      br.innerHTML = rows.length
+        ? rows
+            .map(
+              (c) =>
+                `<div class="mgr-cashier break"><div class="mc-name">${c.name}</div><div class="mc-ticket muted">Break</div></div>`
+            )
+            .join("")
+        : `<div class="muted empty-state">Nobody on break</div>`;
+    }
+
+    const queues = $("#mgrQueues");
+    if (queues) {
+      queues.innerHTML = (ov.queues || [])
+        .map((qq) => {
+          const waitClass = qq.waiting > 5 ? "hot" : qq.waiting > 0 ? "warm" : "cool";
+          return `<div class="queue-card ${waitClass}">
+            <div class="qc-top"><strong>${qq.name}</strong><span class="badge">${qq.status}</span></div>
+            <div class="qc-metrics">
+              <div><span class="qc-num">${qq.waiting}</span><span class="qc-lab">waiting</span></div>
+              <div><span class="qc-num">${qq.eta || "—"}</span><span class="qc-lab">eta</span></div>
+              <div><span class="qc-num">${qq.current_display || "—"}</span><span class="qc-lab">serving</span></div>
+              <div><span class="qc-num">${qq.current_cashier_name || "—"}</span><span class="qc-lab">cashier</span></div>
+            </div>
+          </div>`;
+        })
+        .join("");
+    }
+
+    const hist = $("#mgrHistory");
+    if (hist) {
+      hist.innerHTML = (state.history || [])
+        .slice()
+        .reverse()
+        .slice(0, 40)
+        .map((h) => {
+          const time = h.timestamp ? new Date(h.timestamp).toLocaleTimeString() : "";
+          const who = h.cashier_name ? ` → ${h.cashier_name}` : "";
+          const label =
+            h.type === "issued"
+              ? `Issued ${h.ticket_display || ""}${h.eta ? " (" + h.eta + ")" : ""}`
+              : h.type === "called"
+              ? `Called ${h.ticket_display || ""}${who}`
+              : h.type === "completed"
+              ? `Completed ${h.ticket_display || ""}${who}`
+              : h.type === "reset"
+              ? `Reset ${h.queue_name || ""}`
+              : h.type || "";
+          return `<div class="history-item type-${h.type || ""}"><span><span class="type">${
+            h.type || ""
+          }</span> ${label}</span><span>${time}</span></div>`;
+        })
+        .join("") || "<div class='muted'>No activity yet</div>";
+    }
   }
 
   function render() {
@@ -286,42 +453,49 @@
       sel.innerHTML = (state.queues || [])
         .map(
           (x) =>
-            `<option value="${x.queue_id}" ${x.queue_id === currentQueueId ? "selected" : ""}>${x.name}</option>`
+            `<option value="${x.queue_id}" ${
+              x.queue_id === currentQueueId ? "selected" : ""
+            }>${x.name}</option>`
         )
         .join("");
       currentQueueId = sel.value || prev;
     }
 
+    renderServiceButtons();
     renderCashierSelect();
     const queue = q();
 
     setText("rWaiting", queue.waiting_count ?? 0);
+    setText("rEta", queue.eta || "—");
     setText("rCurrent", queue.current_display || "—");
-
     setText("cCurrent", queue.current_display || "—");
-    setText(
-      "cCashierLine",
-      queue.current_cashier_name ? `at ${queue.current_cashier_name}` : ""
-    );
+    setText("cCashierLine", queue.current_cashier_name ? `at ${queue.current_cashier_name}` : "");
     setText("cWaiting", queue.waiting_count ?? 0);
-    setText("cLast", queue.last_issued_display || "—");
+    setText("cEta", queue.eta || "—");
     setText("cStatus", queue.status || "idle");
 
     const ul = $("#waitingList");
     if (ul) {
       ul.innerHTML = "";
       const displays = queue.waiting_display || [];
-      if (!displays.length) ul.innerHTML = "<li style='opacity:0.5'>No one waiting</li>";
+      if (!displays.length) ul.innerHTML = "<li class='muted'>No one waiting</li>";
       else
         displays.forEach((t, idx) => {
           const li = document.createElement("li");
           li.textContent = t;
-          li.style.cursor = "pointer";
           li.onclick = () =>
             doAction("call_ticket", {
               ticket: queue.waiting[idx],
               cashier_id: selectedCashierId || undefined,
-            }).then((r) => toast(`Called ${t}${r?.result?.cashier_name ? " → " + r.result.cashier_name : ""}`));
+            })
+              .then((r) =>
+                toast(
+                  `Called ${t}${
+                    r?.result?.cashier_name ? " → " + r.result.cashier_name : ""
+                  }`
+                )
+              )
+              .catch((e) => toast(e.message, true));
           ul.appendChild(li);
         });
     }
@@ -332,19 +506,16 @@
       queue.current_cashier_name ? `Please go to ${queue.current_cashier_name}` : ""
     );
     setText("dWaiting", queue.waiting_count ?? 0);
+    setText("dEta", queue.eta || "—");
 
     renderManager();
     renderCashierAdmin();
+    renderServiceAdmin();
     fillPrintForm();
-
-    const s = state.settings || {};
-    if ($("#printerEnabled")) $("#printerEnabled").checked = !!s.printer_enabled;
-    if ($("#printerName")) $("#printerName").value = s.printer_name || "";
-    if ($("#announceEnabled")) $("#announceEnabled").checked = !!s.announce_enabled;
-    if ($("#announceEntity")) $("#announceEntity").value = s.announce_entity || "";
+    fillSecurityForm();
   }
 
-  // Events
+  // ---- events ----
   $$(".mode-btn").forEach((btn) =>
     btn.addEventListener("click", () => setMode(btn.dataset.mode))
   );
@@ -361,9 +532,17 @@
 
   $("#btnTake")?.addEventListener("click", async () => {
     try {
-      const res = await doAction("take_ticket");
+      const extra = {};
+      if (selectedServiceId) extra.service_id = selectedServiceId;
+      const res = await doAction("take_ticket", extra);
       if (res?.result) {
         setText("ticketNumber", res.result.ticket_display);
+        setText(
+          "ticketEta",
+          res.result.eta && res.result.eta !== "—"
+            ? `Estimated wait: ${res.result.eta}`
+            : ""
+        );
         if ($("#ticketResult")) $("#ticketResult").hidden = false;
         toast(`Ticket ${res.result.ticket_display} issued`);
       }
@@ -397,6 +576,32 @@
     }
   });
 
+  $("#btnBreak")?.addEventListener("click", async () => {
+    try {
+      if (!selectedCashierId) return toast("Select a cashier", true);
+      await doAction("set_cashier_status", {
+        cashier_id: selectedCashierId,
+        status: "break",
+      });
+      toast("On break");
+    } catch (e) {
+      toast(e.message, true);
+    }
+  });
+
+  $("#btnResume")?.addEventListener("click", async () => {
+    try {
+      if (!selectedCashierId) return toast("Select a cashier", true);
+      await doAction("set_cashier_status", {
+        cashier_id: selectedCashierId,
+        status: "idle",
+      });
+      toast("Ready");
+    } catch (e) {
+      toast(e.message, true);
+    }
+  });
+
   $("#btnReset")?.addEventListener("click", async () => {
     if (!confirm("Reset this queue?")) return;
     try {
@@ -414,6 +619,7 @@
       const prefix = ($("#newQueuePrefix")?.value || "").trim();
       if (!id) return toast("Enter a queue ID", true);
       await doAction("create_queue", { new_queue_id: id, name, prefix });
+      adminDirty = false;
       toast(`Queue "${name}" created`);
     } catch (e) {
       toast(e.message, true);
@@ -424,19 +630,55 @@
     const n = (state.cashiers || []).length + 1;
     state.cashiers = state.cashiers || [];
     state.cashiers.push({ id: `cashier_${n}`, name: `Cashier ${n}`, enabled: true });
+    adminDirty = false;
     renderCashierAdmin();
+    adminDirty = true;
   });
 
   $("#btnSaveCashiers")?.addEventListener("click", async () => {
     try {
-      const rows = [...document.querySelectorAll("#cashierAdminList .cashier-edit")];
+      const rows = [...document.querySelectorAll("#cashierAdminList .admin-row")];
       const cashiers = rows.map((row) => ({
         id: (row.querySelector(".c-id")?.value || "").trim(),
         name: (row.querySelector(".c-name")?.value || "").trim(),
         enabled: !!row.querySelector(".c-en")?.checked,
       }));
       await doAction("save_cashiers", { cashiers });
+      adminDirty = false;
       toast("Cashiers saved");
+    } catch (e) {
+      toast(e.message, true);
+    }
+  });
+
+  $("#btnAddService")?.addEventListener("click", () => {
+    const n = (state.services || []).length + 1;
+    state.services = state.services || [];
+    state.services.push({
+      id: `service_${n}`,
+      name: `Service ${n}`,
+      queue_id: "main",
+      enabled: true,
+      icon: "🎫",
+    });
+    adminDirty = false;
+    renderServiceAdmin();
+    adminDirty = true;
+  });
+
+  $("#btnSaveServices")?.addEventListener("click", async () => {
+    try {
+      const rows = [...document.querySelectorAll("#serviceAdminList .admin-row")];
+      const services = rows.map((row) => ({
+        id: (row.querySelector(".s-id")?.value || "").trim(),
+        name: (row.querySelector(".s-name")?.value || "").trim(),
+        icon: (row.querySelector(".s-icon")?.value || "🎫").trim(),
+        queue_id: row.querySelector(".s-queue")?.value || "main",
+        enabled: !!row.querySelector(".s-en")?.checked,
+      }));
+      await doAction("save_services", { services });
+      adminDirty = false;
+      toast("Services saved");
     } catch (e) {
       toast(e.message, true);
     }
@@ -450,6 +692,7 @@
         if (el) theme[k] = el.value;
       });
       await doAction("save_theme", { theme });
+      adminDirty = false;
       toast("Theme saved");
     } catch (e) {
       toast(e.message, true);
@@ -460,8 +703,8 @@
     try {
       await doAction("save_theme", {
         theme: {
-          bg: "#0f172a",
-          card: "#1e293b",
+          bg: "#0b1220",
+          card: "#151d2e",
           text: "#f1f5f9",
           muted: "#94a3b8",
           accent: "#3b82f6",
@@ -470,30 +713,12 @@
           danger: "#ef4444",
         },
       });
+      adminDirty = false;
       toast("Theme reset");
     } catch (e) {
       toast(e.message, true);
     }
   });
-
-  $("#btnSaveSettings")?.addEventListener("click", async () => {
-    try {
-      await api("settings", {
-        method: "POST",
-        body: JSON.stringify({
-          printer_enabled: !!$("#printerEnabled")?.checked,
-          printer_name: ($("#printerName")?.value || "").trim(),
-          announce_enabled: !!$("#announceEnabled")?.checked,
-          announce_entity: ($("#announceEntity")?.value || "").trim(),
-        }),
-      });
-      toast("Settings saved");
-      await loadState();
-    } catch (e) {
-      toast(e.message, true);
-    }
-  });
-
 
   $("#btnSavePrint")?.addEventListener("click", async () => {
     try {
@@ -508,17 +733,72 @@
           show_queue_name: !!$("#pt_show_queue")?.checked,
           show_datetime: !!$("#pt_show_datetime")?.checked,
           show_waiting_count: !!$("#pt_show_waiting")?.checked,
+          show_eta: !!$("#pt_show_eta")?.checked,
         },
       });
+      printDirty = false;
       toast("Print layout saved");
     } catch (e) {
       toast(e.message, true);
     }
   });
-  ["pt_title","pt_header","pt_footer","pt_extra","pt_paper","pt_show_number","pt_show_queue","pt_show_datetime","pt_show_waiting"].forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener("input", updatePrintPreview);
-    if (el) el.addEventListener("change", updatePrintPreview);
+
+  $("#btnSaveSecurity")?.addEventListener("click", async () => {
+    try {
+      await doAction("save_security", {
+        admin_pin: ($("#adminPin")?.value || "").trim(),
+        announce_enabled: !!$("#announceEnabled")?.checked,
+        announce_entity: ($("#announceEntity")?.value || "").trim(),
+      });
+      adminDirty = false;
+      unlocked = true;
+      sessionStorage.setItem("qm_unlocked", "1");
+      toast("Security saved");
+    } catch (e) {
+      toast(e.message, true);
+    }
+  });
+
+  document.querySelectorAll("[data-print]").forEach((el) => {
+    el.addEventListener("input", () => {
+      printDirty = true;
+      updatePrintPreview();
+    });
+    el.addEventListener("change", () => {
+      printDirty = true;
+      updatePrintPreview();
+    });
+  });
+  document.querySelectorAll("[data-admin],[data-theme]").forEach((el) => {
+    el.addEventListener("input", () => {
+      adminDirty = true;
+    });
+    el.addEventListener("change", () => {
+      adminDirty = true;
+    });
+  });
+
+  $("#pinOk")?.addEventListener("click", async () => {
+    try {
+      const pin = $("#pinInput")?.value || "";
+      const res = await doAction("verify_pin", { pin });
+      if (res.ok) {
+        unlocked = true;
+        sessionStorage.setItem("qm_unlocked", "1");
+        const mode = pendingMode || "admin";
+        closePinModal();
+        setMode(mode);
+      } else {
+        const err = $("#pinError");
+        if (err) err.hidden = false;
+      }
+    } catch (e) {
+      toast(e.message, true);
+    }
+  });
+  $("#pinCancel")?.addEventListener("click", closePinModal);
+  $("#pinInput")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") $("#pinOk")?.click();
   });
 
   setMode("reception");
