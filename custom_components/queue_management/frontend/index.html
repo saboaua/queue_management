@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Queue Management</title>
-  <link rel="stylesheet" href="/queue_management/static/style.css" />
+  <link rel="stylesheet" href="/queue_management/static/style.css?v=152" />
 </head>
 <body>
   <div id="app">
@@ -179,15 +179,15 @@
             <label>Admin / Manager PIN (blank = off)</label>
             <input id="adminPin" type="password" inputmode="numeric" placeholder="e.g. 1234" data-admin autocomplete="off" />
             <label class="checkbox"><input type="checkbox" id="announceEnabled" data-admin /> Announce when calling (TTS)</label>
-            <label>Speaker / media player</label>
+            <label for="announceEntity">Speaker / media player</label>
             <select id="announceEntity" data-admin>
               <option value="">— Select a speaker —</option>
             </select>
-            <label>TTS engine</label>
+            <label for="announceTtsEntity"><strong>TTS engine</strong> (voice provider)</label>
             <select id="announceTtsEntity" data-admin>
               <option value="">— Auto (first available) —</option>
             </select>
-            <p class="muted">Spoken automatically on <strong>Call Next</strong>. Needs a TTS integration (Piper, Google, Cloud, etc.).</p>
+            <p class="muted" id="ttsEngineHint">If this list is empty, add a TTS integration in Home Assistant (Piper, Google, Cloud…). Spoken on <strong>Call Next</strong>.</p>
             <button id="btnSaveSecurity" class="btn-med btn-blue" type="button">Save security</button>
             <button id="btnTestAnnounce" class="btn-med" type="button">Test announcement</button>
           </div>
@@ -267,6 +267,6 @@
     </div>
     <div id="toast" class="toast" hidden></div>
   </div>
-  <script src="/queue_management/static/app.js"></script>
+  <script src="/queue_management/static/app.js?v=152"></script>
 </body>
 </html>

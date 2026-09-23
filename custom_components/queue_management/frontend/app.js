@@ -311,12 +311,14 @@
   }
 
   function fillSecurityForm() {
-    if (adminDirty) return;
     const s = state.security || {};
-    const pin = $("#adminPin");
-    if (pin && document.activeElement !== pin) pin.value = "";
-    const ae = $("#announceEnabled");
-    if (ae && document.activeElement !== ae) ae.checked = !!s.announce_enabled;
+    // Always refresh dropdowns so TTS/speaker lists appear; skip only focused fields
+    if (!adminDirty) {
+      const pin = $("#adminPin");
+      if (pin && document.activeElement !== pin) pin.value = "";
+      const ae = $("#announceEnabled");
+      if (ae && document.activeElement !== ae) ae.checked = !!s.announce_enabled;
+    }
     fillMediaPlayerSelect(s.announce_entity || "");
     fillTtsEngineSelect(s.announce_tts_entity || "");
   }
@@ -325,19 +327,29 @@
     const sel = $("#announceTtsEntity");
     if (!sel || document.activeElement === sel) return;
     const engines = state.tts_engines || [];
-    const current = selected || sel.value || "";
+    const current = selected || (state.security && state.security.announce_tts_entity) || sel.value || "";
     let opts = `<option value="">— Auto (first available) —</option>`;
-    opts += engines
-      .map((e) => {
-        const selAttr = e.entity_id === current ? " selected" : "";
-        return `<option value="${e.entity_id}"${selAttr}>${e.name} (${e.entity_id})</option>`;
-      })
-      .join("");
+    if (!engines.length) {
+      opts += `<option value="" disabled>No tts.* entities found – add a TTS integration</option>`;
+    } else {
+      opts += engines
+        .map((e) => {
+          const selAttr = e.entity_id === current ? " selected" : "";
+          return `<option value="${e.entity_id}"${selAttr}>${e.name} (${e.entity_id})</option>`;
+        })
+        .join("");
+    }
     if (current && !engines.find((e) => e.entity_id === current)) {
       opts += `<option value="${current}" selected>${current} (saved)</option>`;
     }
     sel.innerHTML = opts;
     if (current) sel.value = current;
+    const hint = $("#ttsEngineHint");
+    if (hint) {
+      hint.textContent = engines.length
+        ? `Found ${engines.length} TTS engine(s). Spoken automatically on Call Next.`
+        : "No TTS engines found. Settings → Devices & Services → Add integration → Piper / Google / Cloud TTS.";
+    }
   }
 
   function fillMediaPlayerSelect(selected) {
