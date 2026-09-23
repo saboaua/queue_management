@@ -38,6 +38,18 @@ DEFAULT_THEME = {
     "danger": "#ef4444",
 }
 
+DEFAULT_PRINT_TEMPLATE = {
+    "title": "QUEUE TICKET",
+    "show_number": True,
+    "show_queue_name": True,
+    "show_datetime": True,
+    "show_waiting_count": True,
+    "header": "Please wait for your number",
+    "footer": "Thank you for your patience",
+    "extra_line": "",
+    "paper_width": "58mm",
+}
+
 DEFAULT_CASHIERS = [
     {"id": "cashier_1", "name": "Cashier 1", "enabled": True},
     {"id": "cashier_2", "name": "Cashier 2", "enabled": True},
@@ -141,6 +153,7 @@ class QueueManager:
         self.queues: dict[str, Queue] = {}
         self.cashiers: dict[str, Cashier] = {}
         self.theme: dict[str, str] = dict(DEFAULT_THEME)
+        self.print_template: dict[str, Any] = dict(DEFAULT_PRINT_TEMPLATE)
         self.history: list[dict[str, Any]] = []
         self._loaded = False
 
@@ -155,6 +168,7 @@ class QueueManager:
                 c = Cashier.from_dict(cdata)
                 self.cashiers[c.id] = c
             self.theme = {**DEFAULT_THEME, **(data.get("theme") or {})}
+            self.print_template = {**DEFAULT_PRINT_TEMPLATE, **(data.get("print_template") or {})}
             _LOGGER.debug("Loaded %d queues, %d cashiers", len(self.queues), len(self.cashiers))
         else:
             self.queues[DEFAULT_QUEUE_ID] = Queue(
@@ -177,6 +191,7 @@ class QueueManager:
             "queues": [q.to_dict() for q in self.queues.values()],
             "cashiers": [c.to_dict() for c in self.cashiers.values()],
             "theme": self.theme,
+            "print_template": self.print_template,
             "history": self.history[-MAX_HISTORY:],
         }
         await self._store.async_save(data)
@@ -294,6 +309,8 @@ class QueueManager:
         self.add_history({**event_data, "type": "issued"})
         await self.async_save()
         self._notify()
+        print_payload = self.build_print_payload(event_data)
+        event_data["print"] = print_payload
         self.hass.bus.async_fire(EVENT_TICKET_ISSUED, event_data)
         return event_data
 
@@ -500,6 +517,50 @@ class QueueManager:
         self.theme = cleaned
         await self.async_save()
         self._notify()
+
+    async def async_save_print_template(self, template: dict[str, Any]) -> None:
+        cleaned = dict(DEFAULT_PRINT_TEMPLATE)
+        for key, default in DEFAULT_PRINT_TEMPLATE.items():
+            if key not in template:
+                continue
+            val = template[key]
+            if isinstance(default, bool):
+                cleaned[key] = bool(val)
+            else:
+                cleaned[key] = str(val) if val is not None else default
+        self.print_template = cleaned
+        await self.async_save()
+        self._notify()
+
+    def build_print_payload(self, event: dict[str, Any]) -> dict[str, Any]:
+        """Build ticket content for printing from template + event."""
+        tpl = self.print_template
+        lines = []
+        if tpl.get("title"):
+            lines.append(str(tpl["title"]))
+        if tpl.get("header"):
+            lines.append(str(tpl["header"]))
+        if tpl.get("show_queue_name") and event.get("queue_name"):
+            lines.append(f"Queue: {event['queue_name']}")
+        if tpl.get("show_number") and event.get("ticket_display"):
+            lines.append(f"Number: {event['ticket_display']}")
+        if tpl.get("show_waiting_count") and "waiting_count" in event:
+            lines.append(f"Waiting ahead: {max(0, int(event['waiting_count']) - 1)}")
+        if tpl.get("show_datetime"):
+            lines.append(event.get("timestamp") or datetime.now(timezone.utc).isoformat())
+        if tpl.get("extra_line"):
+            lines.append(str(tpl["extra_line"]))
+        if tpl.get("footer"):
+            lines.append(str(tpl["footer"]))
+        return {
+            "lines": lines,
+            "ticket_display": event.get("ticket_display"),
+            "queue_id": event.get("queue_id"),
+            "queue_name": event.get("queue_name"),
+            "paper_width": tpl.get("paper_width", "58mm"),
+            "raw_event": event,
+            "template": tpl,
+        }
 
     @callback
     def _notify(self) -> None:

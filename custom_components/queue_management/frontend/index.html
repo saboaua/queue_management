@@ -83,25 +83,31 @@
 
       <!-- MANAGER OVERVIEW -->
       <section id="mode-manager" class="mode-panel">
-        <h2 class="section-title">Live service overview</h2>
-        <div class="stats-row" id="mgrStats">
-          <div class="stat"><div class="stat-value" id="mWaiting">0</div><div class="stat-label">Total waiting</div></div>
-          <div class="stat"><div class="stat-value" id="mServing">0</div><div class="stat-label">Cashiers busy</div></div>
-          <div class="stat"><div class="stat-value" id="mIdle">0</div><div class="stat-label">Cashiers idle</div></div>
+        <div class="mgr-header">
+          <div>
+            <h2 class="section-title">Live service overview</h2>
+            <p class="muted" id="mgrClock">Updating…</p>
+          </div>
+          <div class="mgr-pulse"><span class="dot"></span> LIVE</div>
+        </div>
+        <div class="stats-row mgr-stats">
+          <div class="stat stat-waiting"><div class="stat-value" id="mWaiting">0</div><div class="stat-label">Total waiting</div></div>
+          <div class="stat stat-busy"><div class="stat-value" id="mServing">0</div><div class="stat-label">Cashiers busy</div></div>
+          <div class="stat stat-idle"><div class="stat-value" id="mIdle">0</div><div class="stat-label">Cashiers idle</div></div>
           <div class="stat"><div class="stat-value" id="mEnabled">0</div><div class="stat-label">Cashiers open</div></div>
         </div>
         <div class="admin-grid">
-          <div class="card">
-            <h3>Busy cashiers</h3>
+          <div class="card card-busy">
+            <h3>🔴 Busy cashiers</h3>
             <div id="mgrBusy" class="cashier-list"></div>
           </div>
-          <div class="card">
-            <h3>Idle cashiers (not calling)</h3>
+          <div class="card card-idle">
+            <h3>⚪ Idle cashiers</h3>
             <div id="mgrIdle" class="cashier-list"></div>
           </div>
           <div class="card full">
             <h3>Queues</h3>
-            <div id="mgrQueues" class="cashier-list"></div>
+            <div id="mgrQueues" class="queue-cards"></div>
           </div>
           <div class="card full">
             <h3>Recent activity</h3>
@@ -152,6 +158,36 @@
             <label>Prefix</label>
             <input id="newQueuePrefix" type="text" placeholder="V" />
             <button id="btnCreateQueue" class="btn-med btn-green">Create queue</button>
+          </div>
+
+
+          <div class="card full">
+            <h3>Ticket print layout</h3>
+            <p class="muted">What is printed when a ticket is taken. Also sent on the Home Assistant event <code>queue_management_ticket_issued</code> as <code>print</code>.</p>
+            <label>Title</label>
+            <input id="pt_title" type="text" placeholder="QUEUE TICKET" />
+            <label>Header line</label>
+            <input id="pt_header" type="text" placeholder="Please wait for your number" />
+            <label>Footer line</label>
+            <input id="pt_footer" type="text" placeholder="Thank you for your patience" />
+            <label>Extra line</label>
+            <input id="pt_extra" type="text" placeholder="Optional custom text" />
+            <label>Paper width</label>
+            <select id="pt_paper">
+              <option value="58mm">58mm</option>
+              <option value="80mm">80mm</option>
+            </select>
+            <div class="checkbox-row">
+              <label class="checkbox"><input type="checkbox" id="pt_show_number" /> Show ticket number</label>
+              <label class="checkbox"><input type="checkbox" id="pt_show_queue" /> Show queue name</label>
+              <label class="checkbox"><input type="checkbox" id="pt_show_datetime" /> Show date/time</label>
+              <label class="checkbox"><input type="checkbox" id="pt_show_waiting" /> Show waiting ahead count</label>
+            </div>
+            <div class="print-preview">
+              <div class="preview-label">Preview</div>
+              <pre id="pt_preview"></pre>
+            </div>
+            <button id="btnSavePrint" class="btn-med btn-blue" type="button">Save print layout</button>
           </div>
 
           <div class="card">

@@ -55,6 +55,7 @@ def _state_payload(hass: HomeAssistant, manager: QueueManager) -> dict[str, Any]
         "queues": queues_data,
         "cashiers": cashiers,
         "theme": manager.theme,
+        "print_template": manager.print_template,
         "overview": manager.overview(),
         "history": manager.history[-50:],
         "settings": {
@@ -111,6 +112,10 @@ async def _handle_action(
 
         if action == "save_theme":
             await manager.async_save_theme(data.get("theme") or {})
+            return web.json_response({"ok": True})
+
+        if action == "save_print_template":
+            await manager.async_save_print_template(data.get("print_template") or {})
             return web.json_response({"ok": True})
 
         return web.json_response({"error": f"Unknown action: {action}"}, status=400)

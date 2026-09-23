@@ -162,38 +162,63 @@
     setText("mServing", ov.total_serving ?? 0);
     setText("mIdle", (ov.cashiers_idle || []).length);
     setText("mEnabled", ov.cashiers_enabled ?? 0);
+    const clock = $("#mgrClock");
+    if (clock) clock.textContent = "Updated " + new Date().toLocaleTimeString();
 
     const busy = $("#mgrBusy");
     if (busy) {
       const rows = ov.cashiers_busy || [];
       busy.innerHTML = rows.length
         ? rows
-            .map(
-              (c) =>
-                `<div class="row busy"><strong>${c.name}</strong> → ticket <strong>${c.ticket}</strong> <span class="muted">served ${c.served_count}</span></div>`
-            )
+            .map((c) => {
+              const ago = c.last_call_at
+                ? Math.max(0, Math.round((Date.now() - new Date(c.last_call_at).getTime()) / 60000))
+                : null;
+              return `<div class="mgr-cashier busy">
+                <div class="mc-name">${c.name}</div>
+                <div class="mc-ticket">${c.ticket || "—"}</div>
+                <div class="mc-meta">Served today: ${c.served_count || 0}${ago != null ? ` · ${ago} min` : ""}</div>
+              </div>`;
+            })
             .join("")
-        : `<div class="muted">No cashiers currently serving</div>`;
+        : `<div class="muted empty-state">No cashiers currently serving</div>`;
     }
 
     const idle = $("#mgrIdle");
     if (idle) {
       const rows = ov.cashiers_idle || [];
       idle.innerHTML = rows.length
-        ? rows.map((c) => `<div class="row idle"><strong>${c.name}</strong> — idle</div>`).join("")
-        : `<div class="muted">All open cashiers are busy</div>`;
+        ? rows
+            .map(
+              (c) =>
+                `<div class="mgr-cashier idle">
+                  <div class="mc-name">${c.name}</div>
+                  <div class="mc-ticket muted">Idle</div>
+                  <div class="mc-meta">Available to call next</div>
+                </div>`
+            )
+            .join("")
+        : `<div class="muted empty-state">All open cashiers are busy</div>`;
     }
 
     const queues = $("#mgrQueues");
     if (queues) {
       queues.innerHTML = (ov.queues || [])
-        .map(
-          (q) =>
-            `<div class="row"><strong>${q.name}</strong> — waiting <strong>${q.waiting}</strong>, now ${q.current_display}${
-              q.current_cashier_name ? ` @ ${q.current_cashier_name}` : ""
-            } <span class="badge">${q.status}</span></div>`
-        )
-        .join("");
+        .map((q) => {
+          const waitClass = q.waiting > 5 ? "hot" : q.waiting > 0 ? "warm" : "cool";
+          return `<div class="queue-card ${waitClass}">
+            <div class="qc-top">
+              <strong>${q.name}</strong>
+              <span class="badge">${q.status}</span>
+            </div>
+            <div class="qc-metrics">
+              <div><span class="qc-num">${q.waiting}</span><span class="qc-lab">waiting</span></div>
+              <div><span class="qc-num">${q.current_display || "—"}</span><span class="qc-lab">now serving</span></div>
+              <div><span class="qc-num">${q.current_cashier_name || "—"}</span><span class="qc-lab">cashier</span></div>
+            </div>
+          </div>`;
+        })
+        .join("") || `<div class="muted">No queues</div>`;
     }
 
     const hist = $("#mgrHistory");
@@ -201,7 +226,7 @@
       hist.innerHTML = (state.history || [])
         .slice()
         .reverse()
-        .slice(0, 30)
+        .slice(0, 40)
         .map((h) => {
           const time = h.timestamp ? new Date(h.timestamp).toLocaleTimeString() : "";
           const who = h.cashier_name ? ` → ${h.cashier_name}` : "";
@@ -215,10 +240,43 @@
               : h.type === "reset"
               ? `Reset ${h.queue_name || ""}`
               : h.type || "";
-          return `<div class="history-item"><span><span class="type">${h.type || ""}</span> ${label}</span><span>${time}</span></div>`;
+          return `<div class="history-item type-${h.type || ""}"><span><span class="type">${h.type || ""}</span> ${label}</span><span>${time}</span></div>`;
         })
         .join("") || "<div class='muted'>No activity yet</div>";
     }
+  }
+
+  function fillPrintForm() {
+    const t = state.print_template || {};
+    if ($("#pt_title")) $("#pt_title").value = t.title || "";
+    if ($("#pt_header")) $("#pt_header").value = t.header || "";
+    if ($("#pt_footer")) $("#pt_footer").value = t.footer || "";
+    if ($("#pt_extra")) $("#pt_extra").value = t.extra_line || "";
+    if ($("#pt_paper")) $("#pt_paper").value = t.paper_width || "58mm";
+    if ($("#pt_show_number")) $("#pt_show_number").checked = t.show_number !== false;
+    if ($("#pt_show_queue")) $("#pt_show_queue").checked = t.show_queue_name !== false;
+    if ($("#pt_show_datetime")) $("#pt_show_datetime").checked = t.show_datetime !== false;
+    if ($("#pt_show_waiting")) $("#pt_show_waiting").checked = t.show_waiting_count !== false;
+    updatePrintPreview();
+  }
+
+  function updatePrintPreview() {
+    const pre = $("#pt_preview");
+    if (!pre) return;
+    const lines = [];
+    const title = $("#pt_title")?.value;
+    const header = $("#pt_header")?.value;
+    const footer = $("#pt_footer")?.value;
+    const extra = $("#pt_extra")?.value;
+    if (title) lines.push(title);
+    if (header) lines.push(header);
+    if ($("#pt_show_queue")?.checked) lines.push("Queue: Main Queue");
+    if ($("#pt_show_number")?.checked) lines.push("Number: 42");
+    if ($("#pt_show_waiting")?.checked) lines.push("Waiting ahead: 3");
+    if ($("#pt_show_datetime")?.checked) lines.push(new Date().toLocaleString());
+    if (extra) lines.push(extra);
+    if (footer) lines.push(footer);
+    pre.textContent = lines.join("\n");
   }
 
   function render() {
@@ -277,6 +335,7 @@
 
     renderManager();
     renderCashierAdmin();
+    fillPrintForm();
 
     const s = state.settings || {};
     if ($("#printerEnabled")) $("#printerEnabled").checked = !!s.printer_enabled;
@@ -456,6 +515,33 @@
     } catch (e) {
       toast(e.message, true);
     }
+  });
+
+
+  $("#btnSavePrint")?.addEventListener("click", async () => {
+    try {
+      await doAction("save_print_template", {
+        print_template: {
+          title: ($("#pt_title")?.value || "").trim(),
+          header: ($("#pt_header")?.value || "").trim(),
+          footer: ($("#pt_footer")?.value || "").trim(),
+          extra_line: ($("#pt_extra")?.value || "").trim(),
+          paper_width: $("#pt_paper")?.value || "58mm",
+          show_number: !!$("#pt_show_number")?.checked,
+          show_queue_name: !!$("#pt_show_queue")?.checked,
+          show_datetime: !!$("#pt_show_datetime")?.checked,
+          show_waiting_count: !!$("#pt_show_waiting")?.checked,
+        },
+      });
+      toast("Print layout saved");
+    } catch (e) {
+      toast(e.message, true);
+    }
+  });
+  ["pt_title","pt_header","pt_footer","pt_extra","pt_paper","pt_show_number","pt_show_queue","pt_show_datetime","pt_show_waiting"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", updatePrintPreview);
+    if (el) el.addEventListener("change", updatePrintPreview);
   });
 
   setMode("reception");
