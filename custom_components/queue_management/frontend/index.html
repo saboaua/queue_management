@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Queue Management</title>
-  <link rel="stylesheet" href="/queue_management/static/style.css?v=200" />
+  <link rel="stylesheet" href="/queue_management/static/style.css?v=210" />
 </head>
 <body>
   <div id="app">
@@ -14,11 +14,11 @@
         <span class="title">Queue Management</span>
       </div>
       <nav class="modes">
-        <button data-mode="reception" class="mode-btn active">Reception</button>
-        <button data-mode="calling" class="mode-btn">Calling Desk</button>
-        <button data-mode="display" class="mode-btn">Display</button>
-        <button data-mode="manager" class="mode-btn">Manager</button>
-        <button data-mode="admin" class="mode-btn">Admin</button>
+        <button data-mode="reception" class="mode-btn active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9a2 2 0 0 0 0 6v3h18v-3a2 2 0 0 1 0-6V6H3z"/><path d="M14 7v10" stroke-dasharray="2 3"/></svg>Reception</button>
+        <button data-mode="calling" class="mode-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 11l2 2 4-4"/></svg>Calling Desk</button>
+        <button data-mode="display" class="mode-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>Display</button>
+        <button data-mode="manager" class="mode-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Manager</button>
+        <button data-mode="admin" class="mode-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Admin</button>
       </nav>
       <div class="queue-select-wrap">
         <select id="queueSelect" title="Active queue"></select>
@@ -99,10 +99,16 @@
             <span>Est. wait: <strong id="dEta">—</strong></span>
           </div>
         </div>
-          <aside class="display-next">
+          <div class="display-side">
+            <section class="display-counters">
+              <h2>At the counters</h2>
+              <ul id="dCounters"></ul>
+            </section>
+            <aside class="display-next">
             <h2>Next up</h2>
             <ol id="dNext"></ol>
           </aside>
+          </div>
         </div>
       </section>
 
@@ -355,6 +361,6 @@
     </div>
     <div id="toast" class="toast" hidden></div>
   </div>
-  <script src="/queue_management/static/app.js?v=200"></script>
+  <script src="/queue_management/static/app.js?v=210"></script>
 </body>
 </html>

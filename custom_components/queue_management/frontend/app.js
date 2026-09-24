@@ -184,8 +184,9 @@
     if (panel) panel.classList.add("active");
     const app = $("#app");
     if (app) {
-      if (mode === "admin" || mode === "manager") app.classList.remove("kiosk");
-      else app.classList.add("kiosk");
+      // Public screens are chrome-free; staff screens (calling, manager, admin) keep the side menu and queue picker.
+      if (mode === "reception" || mode === "display") app.classList.add("kiosk");
+      else app.classList.remove("kiosk");
       app.classList.remove("show-menu");
     }
   }
@@ -846,6 +847,20 @@
       dNext.innerHTML = next.length
         ? next.map((t, i) => `<li>${escapeAttr(t)}${i === 0 ? "<span>Next</span>" : ""}</li>`).join("")
         : `<li class="muted">No one waiting</li>`;
+    }
+
+    const dC = $("#dCounters");
+    if (dC) {
+      const busy = new Map((((state.overview || {}).cashiers_busy) || []).map((c) => [c.name, c.ticket]));
+      dC.innerHTML =
+        enabledCashiers()
+          .map((c) => {
+            const t = busy.get(c.name);
+            const kind = t ? "busy" : c.status === "break" ? "break" : "free";
+            const label = t || (kind === "break" ? "Break" : "Free");
+            return `<li class="${kind}"><span>${escapeAttr(c.name)}</span><b class="tk">${escapeAttr(label)}</b></li>`;
+          })
+          .join("") || `<li class="muted">No counters set up</li>`;
     }
 
     renderManager();

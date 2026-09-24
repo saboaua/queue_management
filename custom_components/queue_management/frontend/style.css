@@ -1,5 +1,6 @@
 /* Queue Management v1.9 — light theme.
    Theme colors (Admin → Theme) override --bg/--card/--text/--muted/--blue(accent)/--green/--orange/--red. */
+@font-face { font-family: "Geist"; src: url("/queue_management/static/fonts/geist.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
 @font-face {
   font-family: "Bricolage"; src: url("/queue_management/static/fonts/bricolage.woff2") format("woff2");
   font-weight: 200 800; font-stretch: 75% 100%; font-display: swap;
@@ -11,8 +12,10 @@
   --tint: color-mix(in srgb, var(--blue) 9%, var(--card));
   --radius: 16px; --radius-sm: 10px;
   --shadow: 0 18px 40px -18px rgba(14, 23, 38, .35);
-  font-family: "Bricolage", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --num: "Bricolage", "Geist", system-ui, sans-serif;
 }
+.big-number, .number, .display-number, .display-next li, .tk, .stat-value, .kpi-value, .mc-ticket, .qc-num { font-family: var(--num); }
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
 body { font-size: 16px; line-height: 1.45; font-variant-numeric: tabular-nums; }
@@ -31,6 +34,7 @@ code { background: var(--tint); padding: 1px 6px; border-radius: 6px; font-size:
 .brand .logo { width: 32px; height: 32px; border-radius: 9px; background: var(--blue); color: var(--blue-ink); display: grid; place-items: center; }
 .brand .logo svg { width: 18px; height: 18px; }
 .modes { display: flex; gap: 4px; flex: 1; overflow-x: auto; scrollbar-width: none; }
+.mode-btn svg { display: none; }
 .mode-btn { border: 0; background: none; color: var(--muted); font: inherit; font-weight: 600; font-size: .9375rem; padding: 20px 14px 18px; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
 .mode-btn:hover { color: var(--text); }
 .mode-btn.active { color: var(--text); border-bottom-color: var(--blue); }
@@ -75,7 +79,7 @@ button { font: inherit; }
 /* Reception */
 #mode-reception { max-width: 980px; margin: 0 auto; }
 .hero { margin-bottom: 24px; }
-.hero h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 800; }
+.hero h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 700; letter-spacing: -.035em; }
 .hero p { margin: 6px 0 0; color: var(--muted); font-size: 1.125rem; }
 .service-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px; margin-bottom: 16px; }
 .service-btn { display: flex; align-items: center; gap: 14px; text-align: left; padding: 18px 20px; min-height: 108px; background: var(--card); border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer; color: var(--text); font-weight: 700; font-size: 1.25rem; position: relative; }
@@ -110,8 +114,8 @@ button { font: inherit; }
 .now-serving-box { padding: 26px 20px var(--cut); --cut: 72px; }
 .now-serving-box .big-number { font-size: clamp(5rem, 16vw, 8rem); margin: 4px 0 22px; }
 .now-serving-box .sub { position: absolute; left: 0; right: 0; bottom: 0; height: var(--cut); display: grid; place-items: center; font-weight: 700; }
-.action-row { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-top: 16px; }
-.action-row .btn-med { min-height: 72px; font-size: 1.05rem; border-radius: var(--radius); }
+.action-row { display: grid; grid-template-columns: 3fr 2fr; gap: 12px; margin-top: 16px; }
+.action-row .btn-med { min-height: 72px; font-size: 1rem; padding: 0 12px; border-radius: var(--radius); }
 .action-row .btn-med.btn-blue { background: var(--card); color: var(--text); border-color: var(--border); }
 #cStatus { text-transform: capitalize; }
 .waiting-list-box { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
@@ -136,7 +140,16 @@ main:has(#mode-display.active) { max-width: none; padding-inline: 32px; }
 .display-cashier { font-size: clamp(1.5rem, 3.4vw, 3rem); font-weight: 700; min-height: 1.2em; }
 .display-sub { display: none; }
 .display-meta { position: absolute; left: 0; right: 0; bottom: 0; height: var(--cut); display: flex; justify-content: center; align-items: center; gap: 40px; font-size: 1.15rem; }
-.display-next { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+.display-side { display: flex; flex-direction: column; gap: 16px; }
+.display-counters { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 24px; }
+.display-counters h2 { font-size: 1.125rem; margin-bottom: 8px; }
+.display-counters ul { list-style: none; margin: 0; padding: 0; }
+.display-counters li { display: flex; justify-content: space-between; align-items: baseline; padding: 11px 0; border-top: 1px solid var(--border); font-weight: 600; }
+.display-counters li:first-child { border-top: 0; }
+.display-counters .tk { font-size: 1.6rem; font-stretch: 75%; }
+.display-counters li.free .tk, .display-counters li.break .tk { font-size: 1rem; font-weight: 500; font-stretch: 100%; font-family: var(--font-ui, inherit); color: var(--muted); }
+.display-counters li.free .tk { color: var(--green); }
+.display-next { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
 .display-next h2 { font-size: 1.25rem; margin-bottom: 14px; }
 .display-next ol { list-style: none; margin: 0; padding: 0; }
 .display-next li { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 0; border-top: 1px solid var(--border); font-size: 2.25rem; font-weight: 800; font-stretch: 75%; }
@@ -146,7 +159,7 @@ main:has(#mode-display.active) { max-width: none; padding-inline: 32px; }
 
 /* Manager */
 .mgr-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
-.section-title { font-size: 1.75rem; font-weight: 800; }
+.section-title { font-size: 1.75rem; font-weight: 700; letter-spacing: -.03em; }
 .mgr-pulse { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: .875rem; color: var(--green); }
 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); animation: pulse 2s ease-out infinite; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--green) 50%, transparent); } 100% { box-shadow: 0 0 0 9px transparent; } }
@@ -261,5 +274,21 @@ input[type=color] { width: 48px; height: 36px; border: 1px solid var(--border); 
   main { padding: 20px 14px 96px; } .action-row, .logo-holder, .color-grid { grid-template-columns: 1fr; }
   .admin-grid { grid-template-columns: 1fr; }
   .admin-row, .admin-row.service-row { display: flex; flex-wrap: wrap; } .admin-row input:not(.s-icon):not([type=checkbox]) { flex: 1 1 110px; } .admin-row input.s-icon { width: 52px; flex: none; }
+}
+/* Desktop: staff app shell with a side menu (public kiosk screens stay chrome-free) */
+#app.kiosk #mode-reception.active { min-height: calc(100vh - 96px); display: flex; flex-direction: column; justify-content: center; }
+.card, .kpi-row, .stats-row, .waiting-list-box, .display-next, .display-counters { box-shadow: 0 1px 2px rgba(14, 23, 38, .04); }
+@media (min-width: 1000px) {
+  #app:not(.kiosk) { display: grid; grid-template-columns: 236px minmax(0, 1fr); }
+  #app:not(.kiosk) .topbar { grid-column: 1; grid-row: 1; flex-direction: column; align-items: stretch; align-self: start; gap: 8px; height: 100vh; padding: 22px 14px; border-bottom: 0; border-right: 1px solid var(--border); }
+  #app:not(.kiosk) main { grid-column: 2; grid-row: 1; padding-top: 40px; }
+  #app:not(.kiosk) .brand { padding: 0 8px 18px; font-size: 1rem; white-space: nowrap; }
+  #app:not(.kiosk) .modes { flex-direction: column; flex: 1; gap: 2px; overflow: visible; }
+  #app:not(.kiosk) .topbar .mode-btn { display: flex; align-items: center; gap: 12px; text-align: left; padding: 11px 12px; border: 0; border-radius: 10px; font-size: .9375rem; }
+  #app:not(.kiosk) .topbar .mode-btn svg { display: block; width: 19px; height: 19px; flex: none; }
+  #app:not(.kiosk) .topbar .mode-btn:hover { background: var(--bg); }
+  #app:not(.kiosk) .topbar .mode-btn.active { background: var(--tint); color: var(--blue); }
+  #app:not(.kiosk) .queue-select-wrap { padding-top: 12px; border-top: 1px solid var(--border); }
+  .admin-nav { top: 24px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
