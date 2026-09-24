@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Queue Management</title>
-  <link rel="stylesheet" href="/queue_management/static/style.css?v=210" />
+  <link rel="stylesheet" href="/queue_management/static/style.css?v=230" />
 </head>
 <body>
   <div id="app">
@@ -20,6 +20,7 @@
         <button data-mode="manager" class="mode-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Manager</button>
         <button data-mode="admin" class="mode-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Admin</button>
       </nav>
+      <div class="live"><span class="dot"></span><span class="clock"></span></div>
       <div class="queue-select-wrap">
         <select id="queueSelect" title="Active queue"></select>
       </div>
@@ -70,8 +71,8 @@
           <div class="sub" id="cCashierLine"></div>
         </div>
         <div class="action-row">
-          <button id="btnCallNext" class="btn-huge btn-orange">Call next</button>
-          <button id="btnComplete" class="btn-med btn-blue">Complete / Close</button>
+          <button id="btnCallNext" class="btn-huge btn-orange">Call next<kbd>N</kbd></button>
+          <button id="btnComplete" class="btn-med btn-blue">Complete / Close<kbd>C</kbd></button>
         </div>
         <div class="stats-row">
           <div class="stat"><div class="stat-value" id="cWaiting">0</div><div class="stat-label">Waiting</div></div>
@@ -88,27 +89,33 @@
 
       <!-- DISPLAY -->
       <section id="mode-display" class="mode-panel">
-        <div class="display-layout">
-          <div class="display-screen">
-          <div class="display-label">Now serving</div>
-          <div class="display-number" id="dCurrent">—</div>
-          <div class="display-cashier" id="dCashier"></div>
-          <div class="display-sub">Please wait for your number</div>
-          <div class="display-meta">
-            <span>Waiting: <strong id="dWaiting">0</strong></span>
-            <span>Est. wait: <strong id="dEta">—</strong></span>
+        <div class="board">
+          <div class="board-main">
+            <div class="board-call">
+              <div class="display-label">Now calling — please proceed</div>
+              <div class="display-number" id="dCurrent">—</div>
+              <div class="display-cashier"><span>Go to</span><b id="dCashier"></b></div>
+            </div>
+            <div class="recent-strip">
+              <h2>Recently called</h2>
+              <ul id="dRecent"></ul>
+            </div>
           </div>
-        </div>
-          <div class="display-side">
+          <aside class="board-side">
+            <div class="board-clock clock"></div>
             <section class="display-counters">
-              <h2>At the counters</h2>
+              <h2>Counters <span id="dActiveCount" class="badge"></span></h2>
               <ul id="dCounters"></ul>
             </section>
-            <aside class="display-next">
-            <h2>Next up</h2>
-            <ol id="dNext"></ol>
+            <div class="display-next">
+              <h2>Next up</h2>
+              <ol id="dNext"></ol>
+            </div>
+            <div class="display-meta">
+              <span>Waiting<strong id="dWaiting">0</strong></span>
+              <span>Est. wait<strong id="dEta">—</strong></span>
+            </div>
           </aside>
-          </div>
         </div>
       </section>
 
@@ -361,6 +368,6 @@
     </div>
     <div id="toast" class="toast" hidden></div>
   </div>
-  <script src="/queue_management/static/app.js?v=210"></script>
+  <script src="/queue_management/static/app.js?v=230"></script>
 </body>
 </html>

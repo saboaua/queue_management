@@ -138,9 +138,23 @@
     return (state.services || []).filter((s) => s.enabled);
   }
 
-  const DEFAULT_THEME = { bg: "#f3f5f8", card: "#ffffff", text: "#0e1726", muted: "#566275", accent: "#0f766e", success: "#1f9d55", warning: "#f59e0b", danger: "#dc2626" };
-  const LEGACY_THEME = { bg: "#f7f8fc", card: "#ffffff", text: "#0b0f1e", muted: "#545a72", accent: "#2f6fed", success: "#00b876", warning: "#ff8a00", danger: "#ef3f3f" };
-  const isLegacyTheme = (t) => Object.keys(LEGACY_THEME).every((k) => String(t[k] || "").toLowerCase() === LEGACY_THEME[k]);
+  const DEFAULT_THEME = { bg: "#080b12", card: "#111722", text: "#f3f5f9", muted: "#8891a3", accent: "#2563eb", success: "#22c55e", warning: "#f5a524", danger: "#f43f5e" };
+  // Palettes shipped by earlier versions: installs still holding one of these get the current look.
+  const LEGACY_THEMES = [
+    { bg: "#f7f8fc", card: "#ffffff", text: "#0b0f1e", muted: "#545a72", accent: "#2f6fed", success: "#00b876", warning: "#ff8a00", danger: "#ef3f3f" },
+    { bg: "#f3f5f8", card: "#ffffff", text: "#0e1726", muted: "#566275", accent: "#0f766e", success: "#1f9d55", warning: "#f59e0b", danger: "#dc2626" },
+    { bg: "#f3f4f6", card: "#ffffff", text: "#0b0f14", muted: "#5a6472", accent: "#ff4a1c", success: "#0e8a5f", warning: "#f59e0b", danger: "#c8231b" },
+  ];
+  const isLegacyTheme = (t) => LEGACY_THEMES.some((L) => Object.keys(L).every((k) => String(t[k] || "").toLowerCase() === L[k]));
+  // Text color that stays readable on the accent (buttons, ticket highlights)
+  function readableOn(hex) {
+    const h = String(hex || "").replace("#", "");
+    const n = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
+    if (isNaN(n)) return "#0b0f14";
+    const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    const L = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+    return (L + 0.05) / 0.05 >= 1.05 / (L + 0.05) ? "#0b0f14" : "#ffffff";
+  }
 
   function applyTheme(theme) {
     // Installs that still hold the pre-1.9 default palette get the new look; custom palettes are kept.
@@ -159,6 +173,7 @@
     Object.entries(map).forEach(([k, cssVar]) => {
       if (theme[k]) root.style.setProperty(cssVar, theme[k]);
     });
+    root.style.setProperty("--blue-ink", readableOn(theme.accent || DEFAULT_THEME.accent));
     if (!adminDirty) {
       ["bg", "card", "text", "muted", "accent", "success", "warning", "danger"].forEach((k) => {
         const el = document.getElementById(`theme_${k}`);
@@ -214,6 +229,21 @@
     if (el) el.textContent = val;
   }
 
+  function counterStatusPill(name) {
+    const busy = ((state.overview || {}).cashiers_busy || []).find((c) => c.name === name);
+    if (busy) return { text: busy.ticket, kind: "serving" };
+    const brk = ((state.overview || {}).cashiers_break || []).find((c) => c.name === name);
+    if (brk) return { text: "Break", kind: "off" };
+    return { text: "Ready", kind: "ready" };
+  }
+
+  function serviceMeta(s) {
+    const qq = (state.queues || []).find((x) => x.queue_id === s.queue_id);
+    if (!qq) return "";
+    if (!qq.waiting_count) return "No wait";
+    return `${qq.waiting_count} waiting` + (qq.eta && qq.eta !== "—" ? ` · ~${qq.eta}` : "");
+  }
+
   function renderServiceButtons() {
     const box = $("#serviceButtons");
     if (!box) return;
@@ -230,9 +260,7 @@
         (s) =>
           `<button type="button" class="service-btn ${
             s.id === selectedServiceId ? "active" : ""
-          }" data-service="${s.id}"><span class="svc-icon">${s.icon || "🎫"}</span><span class="svc-name">${
-            s.name
-          }</span></button>`
+          }" data-service="${s.id}"><span class="svc-icon">${s.icon || "🎫"}</span><span class="svc-text"><span class="svc-name">${s.name}</span><span class="svc-meta">${serviceMeta(s)}</span></span></button>`
       )
       .join("");
     box.querySelectorAll("[data-service]").forEach((btn) => {
@@ -540,10 +568,7 @@
     updateLogoPreview(logo);
   }
 
-  const DONUT_PALETTE = [
-    "var(--blue)", "var(--green)", "var(--orange)", "var(--red)",
-    "#8b5cf6", "#06b6d4", "#ec4899", "#84cc16",
-  ];
+  const DONUT_PALETTE = ["var(--blue)", "var(--text)", "#7c8794", "var(--green)", "#b45309", "#c5cad2"];
 
   function fmtHour(h) {
     const period = h < 12 ? "AM" : "PM";
@@ -837,7 +862,7 @@
     setText("dCurrent", queue.current_display || "—");
     setText(
       "dCashier",
-      queue.current_cashier_name ? `Please go to ${queue.current_cashier_name}` : ""
+      queue.current_cashier_name || ""
     );
     setText("dWaiting", queue.waiting_count ?? 0);
     setText("dEta", queue.eta || "—");
@@ -851,16 +876,23 @@
 
     const dC = $("#dCounters");
     if (dC) {
-      const busy = new Map((((state.overview || {}).cashiers_busy) || []).map((c) => [c.name, c.ticket]));
+      const list = enabledCashiers();
       dC.innerHTML =
-        enabledCashiers()
+        list
           .map((c) => {
-            const t = busy.get(c.name);
-            const kind = t ? "busy" : c.status === "break" ? "break" : "free";
-            const label = t || (kind === "break" ? "Break" : "Free");
-            return `<li class="${kind}"><span>${escapeAttr(c.name)}</span><b class="tk">${escapeAttr(label)}</b></li>`;
+            const pill = counterStatusPill(c.name);
+            const calling = c.name === queue.current_cashier_name;
+            return `<li class="${calling ? "calling" : pill.kind}"><div><span class="cid">${escapeAttr(c.name)}</span></div><b class="tk">${pill.text}</b><span class="pill pill-${calling ? "calling" : pill.kind}">${calling ? "Calling" : pill.kind === "serving" ? "Serving" : pill.kind === "off" ? "Break" : "Ready"}</span></li>`;
           })
           .join("") || `<li class="muted">No counters set up</li>`;
+      setText("dActiveCount", `${list.filter((c) => counterStatusPill(c.name).kind !== "off").length} of ${list.length} active`);
+      const rec = $("#dRecent");
+      if (rec) {
+        const called = (state.history || []).filter((x) => x.type === "called").slice(0, 3);
+        rec.innerHTML = called.length
+          ? called.map((x) => `<li><b>${escapeAttr(x.ticket_display)}</b><span>${escapeAttr(x.cashier_name || "")}</span></li>`).join("")
+          : `<li class="muted">No calls yet</li>`;
+      }
     }
 
     renderManager();
@@ -1217,6 +1249,22 @@
   }
   $$("#adminNav button").forEach((b) => b.addEventListener("click", () => setAdminTab(b.dataset.tab)));
   setAdminTab(localStorage.getItem("qm_admin_tab") || "counters");
+
+  function tickClock() {
+    const t = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    $$(".clock").forEach((e) => (e.textContent = t));
+  }
+  tickClock();
+  setInterval(tickClock, 15000);
+
+  // Operator shortcuts on the calling desk: N = call next, C = complete
+  document.addEventListener("keydown", (e) => {
+    if (currentMode !== "calling" || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (["INPUT", "SELECT", "TEXTAREA"].includes((e.target.tagName || "").toUpperCase())) return;
+    const k = e.key.toLowerCase();
+    if (k === "n") { e.preventDefault(); $("#btnCallNext")?.click(); }
+    else if (k === "c") { e.preventDefault(); $("#btnComplete")?.click(); }
+  });
 
   setMode("reception");
   loadState();
