@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Queue Management</title>
-  <link rel="stylesheet" href="/queue_management/static/style.css?v=172" />
+  <link rel="stylesheet" href="/queue_management/static/style.css?v=190" />
 </head>
 <body>
   <div id="app">
     <header class="topbar">
       <div class="brand">
-        <span class="logo">🎫</span>
+        <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9a2 2 0 0 0 0 6v3h18v-3a2 2 0 0 1 0-6V6H3z"/><path d="M14 7v10" stroke-dasharray="2 3"/></svg></span>
         <span class="title">Queue Management</span>
       </div>
       <nav class="modes">
@@ -33,10 +33,10 @@
       <section id="mode-reception" class="mode-panel active">
         <div class="hero">
           <h1>Welcome</h1>
-          <p>Select a service and take your number</p>
+          <p>Choose a service, then take your number.</p>
         </div>
         <div id="serviceButtons" class="service-grid"></div>
-        <button id="btnTake" class="btn-huge btn-green">TAKE TICKET</button>
+        <button id="btnTake" class="btn-huge btn-green">Take a ticket</button>
         <div class="ticket-result" id="ticketResult" hidden>
           <div class="label">Your number</div>
           <div class="number" id="ticketNumber">—</div>
@@ -46,7 +46,7 @@
         <div class="stats-row">
           <div class="stat"><div class="stat-value" id="rWaiting">0</div><div class="stat-label">Waiting</div></div>
           <div class="stat"><div class="stat-value" id="rEta">—</div><div class="stat-label">Est. wait</div></div>
-          <div class="stat"><div class="stat-value" id="rCurrent">—</div><div class="stat-label">Now Serving</div></div>
+          <div class="stat"><div class="stat-value" id="rCurrent">—</div><div class="stat-label">Now serving</div></div>
         </div>
       </section>
 
@@ -63,12 +63,12 @@
           </div>
         </div>
         <div class="now-serving-box">
-          <div class="label">NOW SERVING</div>
+          <div class="label">Now serving</div>
           <div class="big-number" id="cCurrent">—</div>
           <div class="sub" id="cCashierLine"></div>
         </div>
         <div class="action-row">
-          <button id="btnCallNext" class="btn-huge btn-orange">CALL NEXT</button>
+          <button id="btnCallNext" class="btn-huge btn-orange">Call next</button>
           <button id="btnComplete" class="btn-med btn-blue">Complete / Close</button>
         </div>
         <div class="stats-row">
@@ -84,8 +84,9 @@
 
       <!-- DISPLAY -->
       <section id="mode-display" class="mode-panel">
-        <div class="display-screen">
-          <div class="display-label">NOW SERVING</div>
+        <div class="display-layout">
+          <div class="display-screen">
+          <div class="display-label">Now serving</div>
           <div class="display-number" id="dCurrent">—</div>
           <div class="display-cashier" id="dCashier"></div>
           <div class="display-sub">Please wait for your number</div>
@@ -93,6 +94,11 @@
             <span>Waiting: <strong id="dWaiting">0</strong></span>
             <span>Est. wait: <strong id="dEta">—</strong></span>
           </div>
+        </div>
+          <aside class="display-next">
+            <h2>Next up</h2>
+            <ol id="dNext"></ol>
+          </aside>
         </div>
       </section>
 
@@ -103,7 +109,7 @@
             <h2 class="section-title">Dashboard</h2>
             <p class="muted" id="mgrClock">Updating…</p>
           </div>
-          <div class="mgr-pulse"><span class="dot"></span> LIVE</div>
+          <div class="mgr-pulse"><span class="dot"></span> Live</div>
         </div>
 
         <div class="kpi-row" id="mgrKpis"></div>
@@ -331,6 +337,6 @@
     </div>
     <div id="toast" class="toast" hidden></div>
   </div>
-  <script src="/queue_management/static/app.js?v=172"></script>
+  <script src="/queue_management/static/app.js?v=190"></script>
 </body>
 </html>

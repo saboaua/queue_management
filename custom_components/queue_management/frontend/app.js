@@ -138,7 +138,13 @@
     return (state.services || []).filter((s) => s.enabled);
   }
 
+  const DEFAULT_THEME = { bg: "#f3f5f8", card: "#ffffff", text: "#0e1726", muted: "#566275", accent: "#0f766e", success: "#1f9d55", warning: "#f59e0b", danger: "#dc2626" };
+  const LEGACY_THEME = { bg: "#f7f8fc", card: "#ffffff", text: "#0b0f1e", muted: "#545a72", accent: "#2f6fed", success: "#00b876", warning: "#ff8a00", danger: "#ef3f3f" };
+  const isLegacyTheme = (t) => Object.keys(LEGACY_THEME).every((k) => String(t[k] || "").toLowerCase() === LEGACY_THEME[k]);
+
   function applyTheme(theme) {
+    // Installs that still hold the pre-1.9 default palette get the new look; custom palettes are kept.
+    if (!theme || !Object.keys(theme).length || isLegacyTheme(theme)) theme = DEFAULT_THEME;
     const root = document.documentElement;
     const map = {
       bg: "--bg",
@@ -555,7 +561,7 @@
       } ${Math.abs(trend)}% vs yesterday</span>`;
       kpis.innerHTML = `
         <div class="kpi-card">
-          <div class="kpi-icon kpi-icon-blue">🎫</div>
+          <div class="kpi-icon kpi-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9a2 2 0 0 0 0 6v3h18v-3a2 2 0 0 1 0-6V6H3z"/><path d="M14 7v10" stroke-dasharray="2 3"/></svg></div>
           <div class="kpi-body">
             <div class="kpi-value">${d.today_issued ?? 0}</div>
             <div class="kpi-label">Tickets today</div>
@@ -563,21 +569,21 @@
           </div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-icon kpi-icon-green">✅</div>
+          <div class="kpi-icon kpi-icon-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div>
           <div class="kpi-body">
             <div class="kpi-value">${d.today_completed ?? 0}</div>
             <div class="kpi-label">Completed today</div>
           </div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-icon kpi-icon-orange">⏳</div>
+          <div class="kpi-icon kpi-icon-orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
           <div class="kpi-body">
             <div class="kpi-value">${ov.total_waiting ?? 0}</div>
             <div class="kpi-label">Waiting now</div>
           </div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-icon kpi-icon-purple">⏱️</div>
+          <div class="kpi-icon kpi-icon-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg></div>
           <div class="kpi-body">
             <div class="kpi-value">${ov.avg_service_display || "—"}</div>
             <div class="kpi-label">Avg. service time</div>
@@ -822,6 +828,13 @@
     );
     setText("dWaiting", queue.waiting_count ?? 0);
     setText("dEta", queue.eta || "—");
+    const dNext = $("#dNext");
+    if (dNext) {
+      const next = (queue.waiting_display || []).slice(0, 5);
+      dNext.innerHTML = next.length
+        ? next.map((t, i) => `<li>${escapeAttr(t)}${i === 0 ? "<span>Next</span>" : ""}</li>`).join("")
+        : `<li class="muted">No one waiting</li>`;
+    }
 
     renderManager();
     renderCashierAdmin();
@@ -1019,16 +1032,7 @@
   $("#btnResetTheme")?.addEventListener("click", async () => {
     try {
       await doAction("save_theme", {
-        theme: {
-          bg: "#f7f8fc",
-          card: "#ffffff",
-          text: "#0b0f1e",
-          muted: "#545a72",
-          accent: "#2f6fed",
-          success: "#00b876",
-          warning: "#ff8a00",
-          danger: "#ef3f3f",
-        },
+        theme: DEFAULT_THEME,
       });
       adminDirty = false;
       toast("Theme reset");
