@@ -138,9 +138,11 @@
     return (state.services || []).filter((s) => s.enabled);
   }
 
-  const DEFAULT_THEME = { bg: "#080b12", card: "#111722", text: "#f3f5f9", muted: "#8891a3", accent: "#2563eb", success: "#22c55e", warning: "#f5a524", danger: "#f43f5e" };
-  // Palettes shipped by earlier versions: installs still holding one of these get the current look.
+  // Light theme default — clean tablet / kiosk look
+  const DEFAULT_THEME = { bg: "#f3f5f8", card: "#ffffff", text: "#0e1726", muted: "#566275", accent: "#2563eb", success: "#16a34a", warning: "#f59e0b", danger: "#dc2626" };
+  // Previous dark default + older light variants: force to current light look so all installs stay consistent.
   const LEGACY_THEMES = [
+    { bg: "#080b12", card: "#111722", text: "#f3f5f9", muted: "#8891a3", accent: "#2563eb", success: "#22c55e", warning: "#f5a524", danger: "#f43f5e" },
     { bg: "#f7f8fc", card: "#ffffff", text: "#0b0f1e", muted: "#545a72", accent: "#2f6fed", success: "#00b876", warning: "#ff8a00", danger: "#ef3f3f" },
     { bg: "#f3f5f8", card: "#ffffff", text: "#0e1726", muted: "#566275", accent: "#0f766e", success: "#1f9d55", warning: "#f59e0b", danger: "#dc2626" },
     { bg: "#f3f4f6", card: "#ffffff", text: "#0b0f14", muted: "#5a6472", accent: "#ff4a1c", success: "#0e8a5f", warning: "#f59e0b", danger: "#c8231b" },
@@ -157,7 +159,7 @@
   }
 
   function applyTheme(theme) {
-    // Installs that still hold the pre-1.9 default palette get the new look; custom palettes are kept.
+    // Installs that still hold a previous default palette get the new light look; custom palettes are kept.
     if (!theme || !Object.keys(theme).length || isLegacyTheme(theme)) theme = DEFAULT_THEME;
     const root = document.documentElement;
     const map = {
@@ -271,13 +273,17 @@
         if (svc?.queue_id) currentQueueId = svc.queue_id;
         renderServiceButtons();
         render();
-        if (list.length > 1) takeTicket(); // one tap = one ticket
+        // Selection only — user confirms with the big "Take a ticket" button (tablet-friendly)
       };
     });
-    const single = list.length <= 1;
-    box.classList.toggle("one-tap", !single);
-    const tb = $("#btnTake"); if (tb) tb.hidden = !single;
-    setText("heroHint", single ? "Take your number." : "Tap a service to get your number.");
+    // Always show the large Take button for tablet / kiosk use
+    box.classList.remove("one-tap");
+    const tb = $("#btnTake");
+    if (tb) {
+      tb.hidden = false;
+      tb.textContent = list.length > 1 ? "Take a ticket" : "Take a ticket";
+    }
+    setText("heroHint", list.length > 1 ? "Choose a service, then press the big button." : "Press the button to take your number.");
   }
 
   function renderCashierSelect() {

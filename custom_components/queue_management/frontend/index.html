@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Queue Management</title>
-  <link rel="stylesheet" href="/queue_management/static/style.css?v=230" />
+  <link rel="stylesheet" href="/queue_management/static/style.css?v=231" />
 </head>
 <body>
   <div id="app">
@@ -43,7 +43,9 @@
           <div class="hint">Please wait for your number to be called</div>
         </div>
         <div id="serviceButtons" class="service-grid"></div>
-        <button id="btnTake" class="btn-huge btn-green">Take a ticket</button>
+        <button id="btnTake" class="btn-huge btn-green" type="button" aria-label="Take a ticket">
+          🎫 Take a ticket
+        </button>
         <div class="stats-row">
           <div class="stat"><div class="stat-value" id="rWaiting">0</div><div class="stat-label">Waiting</div></div>
           <div class="stat"><div class="stat-value" id="rEta">—</div><div class="stat-label">Est. wait</div></div>
@@ -368,6 +370,6 @@
     </div>
     <div id="toast" class="toast" hidden></div>
   </div>
-  <script src="/queue_management/static/app.js?v=230"></script>
+  <script src="/queue_management/static/app.js?v=231"></script>
 </body>
 </html>

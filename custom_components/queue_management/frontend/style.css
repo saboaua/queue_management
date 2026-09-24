@@ -3,11 +3,12 @@
 @font-face { font-family: "Geist"; src: url("/queue_management/static/fonts/geist.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
 @font-face { font-family: "Geist Mono"; src: url("/queue_management/static/fonts/geist-mono.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
 :root {
-  --bg: #080b12; --card: #111722; --text: #f3f5f9; --muted: #8891a3; --border: #232c3d;
-  --blue: #2563eb; --blue-ink: #ffffff; --green: #22c55e; --orange: #f5a524; --red: #f43f5e;
-  --chrome: #05070c; --chrome-ink: #f3f5f9; --paper: #ffffff; --paper-ink: #0b0f14;
-  --accent-text: color-mix(in srgb, var(--blue) 55%, #fff);
-  --tint: color-mix(in srgb, var(--blue) 14%, var(--card));
+  /* Light theme (default) — clean tablet / kiosk look matching QueueFlow design */
+  --bg: #f3f5f8; --card: #ffffff; --text: #0e1726; --muted: #566275; --border: #e2e6ee;
+  --blue: #2563eb; --blue-ink: #ffffff; --green: #16a34a; --orange: #f59e0b; --red: #dc2626;
+  --chrome: #ffffff; --chrome-ink: #0e1726; --paper: #ffffff; --paper-ink: #0b0f14;
+  --accent-text: color-mix(in srgb, var(--blue) 70%, #0e1726);
+  --tint: color-mix(in srgb, var(--blue) 10%, var(--card));
   --radius: 12px; --radius-sm: 7px;
   --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-family: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -57,12 +58,13 @@ main { flex: 1; width: 100%; max-width: 1240px; margin: 0 auto; padding: 32px 24
 /* Buttons */
 button { font: inherit; }
 .btn-huge, .btn-med { border: 1px solid transparent; border-radius: var(--radius-sm); font-weight: 650; cursor: pointer; transition: transform .08s ease, background .15s ease; }
-.btn-huge { width: 100%; min-height: 76px; font-size: 1.5rem; border-radius: var(--radius); letter-spacing: -.01em; }
+/* Large touch target for reception tablet / kiosk */
+.btn-huge { width: 100%; min-height: 96px; font-size: 1.75rem; border-radius: var(--radius); letter-spacing: -.01em; padding: 18px 24px; box-shadow: 0 4px 14px color-mix(in srgb, var(--blue) 22%, transparent); }
 .btn-med { min-height: 44px; padding: 0 18px; font-size: .9375rem; background: var(--card); border-color: var(--border); color: var(--text); }
 .btn-med:hover { border-color: var(--text); }
 .btn-huge:active, .btn-med:active { transform: scale(.98); }
 .btn-huge.btn-green, .btn-huge.btn-orange { background: var(--blue); color: var(--blue-ink); border-color: var(--blue); }
-.btn-huge.btn-green:hover, .btn-huge.btn-orange:hover { background: color-mix(in srgb, var(--blue) 88%, #fff); }
+.btn-huge.btn-green:hover, .btn-huge.btn-orange:hover { background: color-mix(in srgb, var(--blue) 88%, #0e1726); box-shadow: 0 6px 18px color-mix(in srgb, var(--blue) 30%, transparent); }
 .btn-blue { background: var(--text); color: var(--card); border-color: var(--text); }
 .btn-blue:hover { background: color-mix(in srgb, var(--text) 85%, #fff); border-color: transparent; }
 .btn-med.btn-green { color: var(--accent-text); border-color: color-mix(in srgb, var(--blue) 45%, transparent); background: var(--tint); }
@@ -89,16 +91,16 @@ kbd { font: 600 .75rem var(--mono); padding: 2px 7px; margin-left: 10px; border:
 .hero { margin-bottom: 26px; }
 .hero h1 { font-size: clamp(2.2rem, 5.5vw, 3.6rem); font-weight: 650; letter-spacing: -.045em; }
 .hero p { margin: 6px 0 0; color: var(--muted); font-size: 1.15rem; }
-.service-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 16px; }
-.service-btn { display: flex; align-items: center; gap: 16px; text-align: left; padding: 18px 20px; min-height: 116px; background: var(--card); border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer; color: var(--text); position: relative; }
-.service-btn:hover { border-color: var(--text); }
-.service-btn:active { background: var(--text); color: var(--card); transform: scale(.985); }
-.service-btn .svc-icon { width: 60px; height: 60px; border-radius: 8px; background: var(--bg); display: grid; place-items: center; font-size: 1.8rem; flex: none; }
+.service-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.service-btn { display: flex; align-items: center; gap: 16px; text-align: left; padding: 20px 22px; min-height: 120px; background: var(--card); border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer; color: var(--text); position: relative; box-shadow: 0 1px 3px color-mix(in srgb, var(--text) 6%, transparent); }
+.service-btn:hover { border-color: var(--blue); box-shadow: 0 2px 8px color-mix(in srgb, var(--blue) 12%, transparent); }
+.service-btn:active { background: var(--tint); transform: scale(.985); }
+.service-btn .svc-icon { width: 64px; height: 64px; border-radius: 10px; background: var(--bg); display: grid; place-items: center; font-size: 1.9rem; flex: none; }
 .svc-text { display: grid; gap: 4px; min-width: 0; }
-.service-btn .svc-name { font-weight: 650; font-size: 1.3rem; letter-spacing: -.02em; line-height: 1.15; }
+.service-btn .svc-name { font-weight: 650; font-size: 1.35rem; letter-spacing: -.02em; line-height: 1.15; }
 .svc-meta { font: 500 .8125rem var(--mono); color: var(--muted); }
 .service-btn:active .svc-meta { color: inherit; opacity: .7; }
-.service-grid:not(.one-tap) .service-btn.active { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
+.service-btn.active { border-color: var(--blue); box-shadow: 0 0 0 2px color-mix(in srgb, var(--blue) 35%, transparent); background: var(--tint); }
 .ticket-result { max-width: 520px; margin: 0 0 24px; padding: 26px 24px var(--cut); }
 .ticket-result .number { font-size: clamp(4.6rem, 18vw, 8rem); margin: 8px 0 30px; }
 .ticket-result .eta { position: absolute; left: 0; right: 0; bottom: calc(var(--cut) - 44px); font-weight: 650; font-size: 1.125rem; color: var(--accent-text); }
@@ -266,15 +268,15 @@ input[type=color] { width: 48px; height: 36px; border: 1px solid var(--border); 
 .modal-card input { margin: 14px 0; text-align: center; font: 600 1.4rem var(--mono); letter-spacing: .3em; }
 .modal-card .btn-row { justify-content: flex-end; margin-top: 4px; }
 .error-text { color: var(--red); font-weight: 600; margin: 10px 0 0; }
-.fab { display: none; position: fixed; right: 20px; bottom: 20px; width: 50px; height: 50px; border-radius: 10px; border: 0; background: var(--chrome); color: #fff; font-size: 1.3rem; cursor: pointer; z-index: 90; place-items: center; opacity: .85; }
+.fab { display: none; position: fixed; right: 20px; bottom: 20px; width: 50px; height: 50px; border-radius: 10px; border: 0; background: var(--blue); color: var(--blue-ink); font-size: 1.3rem; cursor: pointer; z-index: 90; place-items: center; opacity: .95; box-shadow: 0 4px 14px color-mix(in srgb, var(--blue) 35%, transparent); }
 .fab-modes { display: none; position: fixed; right: 20px; bottom: 82px; flex-direction: column; gap: 4px; z-index: 90; }
-.fab-modes .mode-btn { background: var(--chrome); color: #fff; border: 0; border-radius: 8px; padding: 12px 20px; text-align: left; }
+.fab-modes .mode-btn { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; text-align: left; box-shadow: 0 4px 12px color-mix(in srgb, var(--text) 10%, transparent); }
 #app.kiosk .topbar { display: none; }
 #app.kiosk .fab { display: grid; }
 #app.show-menu .fab-modes { display: flex; }
 #app:not(.kiosk) .fab, #app:not(.kiosk) .fab-modes { display: none !important; }
-.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--chrome); color: #fff; padding: 12px 20px; border-radius: 8px; font-weight: 550; box-shadow: 0 16px 32px -12px rgba(11, 15, 20, .5); z-index: 120; max-width: 90vw; }
-.toast.error { background: var(--red); }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: var(--card); padding: 12px 20px; border-radius: 8px; font-weight: 550; box-shadow: 0 16px 32px -12px rgba(11, 15, 20, .35); z-index: 120; max-width: 90vw; }
+.toast.error { background: var(--red); color: #fff; }
 
 @media (max-width: 1000px) {
   .board, .chart-grid, .form-grid, .desk-layout { grid-template-columns: 1fr; }
