@@ -242,8 +242,13 @@
         if (svc?.queue_id) currentQueueId = svc.queue_id;
         renderServiceButtons();
         render();
+        if (list.length > 1) takeTicket(); // one tap = one ticket
       };
     });
+    const single = list.length <= 1;
+    box.classList.toggle("one-tap", !single);
+    const tb = $("#btnTake"); if (tb) tb.hidden = !single;
+    setText("heroHint", single ? "Take your number." : "Tap a service to get your number.");
   }
 
   function renderCashierSelect() {
@@ -766,6 +771,13 @@
     }
   }
 
+  function waitedLabel(display) {
+    const h = (state.history || []).slice().reverse().find((x) => x.type === "issued" && x.ticket_display === display && x.timestamp);
+    if (!h) return "";
+    const m = Math.max(0, Math.round((Date.now() - new Date(h.timestamp).getTime()) / 60000));
+    return m < 1 ? "just now" : m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
+  }
+
   function render() {
     const sel = $("#queueSelect");
     if (sel) {
@@ -802,7 +814,7 @@
       else
         displays.forEach((t, idx) => {
           const li = document.createElement("li");
-          li.textContent = t;
+          li.innerHTML = `<span class="pos">${idx + 1}</span><span class="tk">${escapeAttr(t)}</span><span class="wt">${waitedLabel(t)}</span><span class="call">Call</span>`;
           li.onclick = () =>
             doAction("call_ticket", {
               ticket: queue.waiting[idx],
@@ -858,27 +870,34 @@
     localStorage.setItem("qm_cashier", selectedCashierId);
   });
 
-  $("#btnTake")?.addEventListener("click", async () => {
+  let issuing = false, ticketTimer = null;
+  async function takeTicket() {
+    if (issuing) return;
+    issuing = true;
     try {
       const extra = {};
       if (selectedServiceId) extra.service_id = selectedServiceId;
       const res = await doAction("take_ticket", extra);
       if (res?.result) {
         setText("ticketNumber", res.result.ticket_display);
-        setText(
-          "ticketEta",
-          res.result.eta && res.result.eta !== "—"
-            ? `Estimated wait: ${res.result.eta}`
-            : ""
-        );
-        if ($("#ticketResult")) $("#ticketResult").hidden = false;
+        setText("ticketEta", res.result.eta && res.result.eta !== "—" ? `Estimated wait: ${res.result.eta}` : "");
+        const box = $("#ticketResult");
+        if (box) {
+          box.hidden = false;
+          box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          clearTimeout(ticketTimer);
+          ticketTimer = setTimeout(() => (box.hidden = true), 15000);
+        }
         playCallSound((state.security && state.security.new_ticket_sound) || "beep");
         toast(`Ticket ${res.result.ticket_display} issued`);
       }
     } catch (e) {
       toast(e.message, true);
+    } finally {
+      setTimeout(() => (issuing = false), 1500);
     }
-  });
+  }
+  $("#btnTake")?.addEventListener("click", takeTicket);
 
   $("#btnCallNext")?.addEventListener("click", async () => {
     try {
@@ -1175,6 +1194,14 @@
     },
     { once: false }
   );
+
+  function setAdminTab(tab) {
+    localStorage.setItem("qm_admin_tab", tab);
+    $$("#adminNav button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+    $$("#mode-admin .admin-pane > [data-tab]").forEach((c) => c.classList.toggle("tab-active", c.dataset.tab === tab));
+  }
+  $$("#adminNav button").forEach((b) => b.addEventListener("click", () => setAdminTab(b.dataset.tab)));
+  setAdminTab(localStorage.getItem("qm_admin_tab") || "counters");
 
   setMode("reception");
   loadState();

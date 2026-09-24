@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Queue Management</title>
-  <link rel="stylesheet" href="/queue_management/static/style.css?v=190" />
+  <link rel="stylesheet" href="/queue_management/static/style.css?v=200" />
 </head>
 <body>
   <div id="app">
@@ -33,16 +33,16 @@
       <section id="mode-reception" class="mode-panel active">
         <div class="hero">
           <h1>Welcome</h1>
-          <p>Choose a service, then take your number.</p>
+          <p id="heroHint">Choose a service, then take your number.</p>
         </div>
-        <div id="serviceButtons" class="service-grid"></div>
-        <button id="btnTake" class="btn-huge btn-green">Take a ticket</button>
         <div class="ticket-result" id="ticketResult" hidden>
           <div class="label">Your number</div>
           <div class="number" id="ticketNumber">—</div>
           <div class="eta" id="ticketEta"></div>
           <div class="hint">Please wait for your number to be called</div>
         </div>
+        <div id="serviceButtons" class="service-grid"></div>
+        <button id="btnTake" class="btn-huge btn-green">Take a ticket</button>
         <div class="stats-row">
           <div class="stat"><div class="stat-value" id="rWaiting">0</div><div class="stat-label">Waiting</div></div>
           <div class="stat"><div class="stat-value" id="rEta">—</div><div class="stat-label">Est. wait</div></div>
@@ -62,6 +62,8 @@
             <button type="button" id="btnResume" class="btn-med btn-green">Resume</button>
           </div>
         </div>
+        <div class="desk-layout">
+        <div class="desk-main">
         <div class="now-serving-box">
           <div class="label">Now serving</div>
           <div class="big-number" id="cCurrent">—</div>
@@ -76,9 +78,11 @@
           <div class="stat"><div class="stat-value" id="cEta">—</div><div class="stat-label">Est. wait</div></div>
           <div class="stat"><div class="stat-value" id="cStatus">idle</div><div class="stat-label">Status</div></div>
         </div>
+        </div>
         <div class="waiting-list-box">
-          <h3>Waiting list</h3>
+          <h3>Waiting</h3>
           <ul id="waitingList"></ul>
+        </div>
         </div>
       </section>
 
@@ -161,9 +165,18 @@
 
       <!-- ADMIN -->
       <section id="mode-admin" class="mode-panel">
-        <div class="admin-grid">
-          <div class="card card-cashiers">
-            <h3>Cashiers / counters</h3>
+        <div class="admin-shell">
+        <nav class="admin-nav" id="adminNav" aria-label="Settings">
+          <button type="button" data-tab="counters">Cashiers</button>
+          <button type="button" data-tab="services">Services</button>
+          <button type="button" data-tab="queues">Queues</button>
+          <button type="button" data-tab="appearance">Appearance</button>
+          <button type="button" data-tab="announce">Announcements</button>
+          <button type="button" data-tab="print">Ticket printing</button>
+        </nav>
+        <div class="admin-grid admin-pane">
+          <div class="card card-cashiers" data-tab="counters">
+            <h3>Cashiers</h3>
             <p class="muted">Names shown on calling desk and display.</p>
             <div id="cashierAdminList" class="admin-list"></div>
             <div class="btn-row">
@@ -172,7 +185,7 @@
             </div>
           </div>
 
-          <div class="card card-services">
+          <div class="card card-services" data-tab="services">
             <h3>Services (reception)</h3>
             <p class="muted">Buttons shown when taking a ticket.</p>
             <div id="serviceAdminList" class="admin-list"></div>
@@ -182,7 +195,7 @@
             </div>
           </div>
 
-          <div class="card card-theme">
+          <div class="card card-theme" data-tab="appearance">
             <h3>Theme / colors</h3>
             <div class="color-grid">
               <label>Background <input type="color" id="theme_bg" data-theme /></label>
@@ -200,10 +213,12 @@
             </div>
           </div>
 
-          <div class="card card-security">
+          <div class="card card-security" data-tab="announce">
             <h3>Security & announcements</h3>
+            <h4 class="sub">Access</h4>
             <label>Admin / Manager PIN (blank = off)</label>
             <input id="adminPin" type="password" inputmode="numeric" placeholder="e.g. 1234" data-admin autocomplete="off" />
+            <h4 class="sub">Voice announcements</h4>
             <label class="checkbox"><input type="checkbox" id="announceEnabled" data-admin /> Announce when calling (TTS)</label>
             <label for="announceEntity">Speaker / media player</label>
             <select id="announceEntity" data-admin>
@@ -219,6 +234,7 @@
             <label>Message without cashier</label>
             <input id="announceWithoutCashier" type="text" data-admin placeholder="Ticket {ticket}, please proceed" />
             <p class="muted">Placeholders: <code>{ticket}</code> <code>{cashier}</code></p>
+            <h4 class="sub">Sounds</h4>
             <label for="callSound">Sound when calling a ticket</label>
             <select id="callSound" data-admin>
               <option value="none">None</option>
@@ -237,6 +253,7 @@
               <option value="alert">Alert</option>
             </select>
             <p class="muted">Plays on the calling desk computer whenever reception presses Take Ticket.</p>
+            <h4 class="sub">Logo</h4>
             <label for="uiLogoUrl">Reception / header logo URL</label>
             <input id="uiLogoUrl" type="url" data-admin placeholder="https://example.com/logo.png" />
             <p class="muted">Shown centered at the top of the queue screens.</p>
@@ -247,7 +264,7 @@
             </div>
           </div>
 
-          <div class="card card-queues">
+          <div class="card card-queues" data-tab="queues">
             <h3>Queue actions</h3>
             <button id="btnReset" class="btn-med btn-danger" type="button">Reset current queue</button>
             <p class="muted">Clears waiting list and counter for the selected queue.</p>
@@ -263,7 +280,7 @@
             </div>
           </div>
 
-          <div class="card full">
+          <div class="card full" data-tab="print">
             <h3>Ticket print layout</h3>
             <p class="muted">Printed content + HA event <code>queue_management_ticket_issued</code> → <code>print.lines</code></p>
             <div class="logo-holder">
@@ -312,6 +329,7 @@
             <button id="btnSavePrint" class="btn-med btn-blue" type="button">Save print layout</button>
           </div>
         </div>
+        </div>
       </section>
     </main>
 
@@ -337,6 +355,6 @@
     </div>
     <div id="toast" class="toast" hidden></div>
   </div>
-  <script src="/queue_management/static/app.js?v=190"></script>
+  <script src="/queue_management/static/app.js?v=200"></script>
 </body>
 </html>
