@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Queue Management</title>
-  <link rel="stylesheet" href="/queue_management/static/style.css?v=233" />
+  <link rel="stylesheet" href="/queue_management/static/style.css?v=234" />
 </head>
 <body>
   <div id="app">
@@ -32,45 +32,65 @@
       </div>
       <!-- RECEPTION / KIOSK -->
       <section id="mode-reception" class="mode-panel active">
-        <div class="kiosk-shell">
-          <header class="kiosk-top">
-            <div class="kiosk-loc">
-              <span class="kiosk-dot"></span>
-              <span id="kioskLocName">Reception Kiosk</span>
+        <div class="rx-shell">
+          <div class="rx-header">
+            <div>
+              <div class="rx-badge">Self-service express kiosk</div>
+              <h1 class="rx-title">Welcome</h1>
+              <p class="rx-sub" id="heroHint">Please tap a service category below to receive your printed ticket immediately.</p>
             </div>
-            <div class="kiosk-clock" id="kioskClock"></div>
-          </header>
-
-          <div class="kiosk-hero">
-            <div class="kiosk-badge">Smart Ticket System</div>
-            <h1>Take Your Ticket</h1>
-            <p id="heroHint">Please tap your desired service below to generate your paper or mobile ticket</p>
           </div>
 
-          <div class="ticket-result" id="ticketResult" hidden>
-            <div class="label">Your number</div>
-            <div class="number" id="ticketNumber">—</div>
-            <div class="eta" id="ticketEta"></div>
-            <div class="hint">Please wait for your number to be called</div>
-          </div>
-
-          <div id="serviceButtons" class="service-grid kiosk-services"></div>
-
-          <div class="kiosk-actions">
-            <button id="btnTake" class="btn-collect" type="button" aria-label="Collect ticket">
-              Collect Ticket
-            </button>
-          </div>
-
-          <footer class="kiosk-foot">
-            <div class="kiosk-status">
-              <span class="kiosk-dot"></span>
-              <span>Ticket Dispenser Ready</span>
+          <div class="rx-body">
+            <div class="rx-services">
+              <div id="serviceButtons" class="rx-service-list"></div>
             </div>
-            <div class="kiosk-stats">
-              <span><strong id="rWaiting">0</strong> waiting</span>
-              <span>Est. <strong id="rEta">—</strong></span>
-              <span>Now <strong id="rCurrent">—</strong></span>
+
+            <aside class="rx-side">
+              <div class="rx-ticket-panel">
+                <div class="rx-ticket-head">
+                  <span class="rx-ticket-label">Thermal ticket</span>
+                  <span class="rx-ready"><span class="kiosk-dot"></span> Ready</span>
+                </div>
+                <div class="ticket-result rx-ticket-card" id="ticketResult">
+                  <div class="rx-ticket-meta">
+                    <span id="kioskLocName">Queue</span>
+                    <span class="kiosk-clock" id="kioskClock">—</span>
+                  </div>
+                  <div class="label">Your number</div>
+                  <div class="number" id="ticketNumber">—</div>
+                  <div class="rx-ticket-svc" id="ticketSvcName"></div>
+                  <div class="eta" id="ticketEta"></div>
+                  <div class="hint">Tap a service to get your ticket</div>
+                </div>
+                <button id="btnTake" class="btn-collect" type="button" aria-label="Collect ticket">
+                  Collect Ticket
+                </button>
+              </div>
+            </aside>
+          </div>
+
+          <footer class="rx-foot">
+            <div class="rx-kpi">
+              <div class="rx-kpi-icon">👥</div>
+              <div>
+                <div class="rx-kpi-val"><strong id="rWaiting">0</strong> customers</div>
+                <div class="rx-kpi-lbl">Currently waiting</div>
+              </div>
+            </div>
+            <div class="rx-kpi">
+              <div class="rx-kpi-icon">⏱</div>
+              <div>
+                <div class="rx-kpi-val"><strong id="rEta">—</strong></div>
+                <div class="rx-kpi-lbl">Est. wait</div>
+              </div>
+            </div>
+            <div class="rx-kpi">
+              <div class="rx-kpi-icon">📣</div>
+              <div>
+                <div class="rx-kpi-val"><strong id="rCurrent">—</strong></div>
+                <div class="rx-kpi-lbl">Now serving</div>
+              </div>
             </div>
           </footer>
         </div>
@@ -393,6 +413,6 @@
     </div>
     <div id="toast" class="toast" hidden></div>
   </div>
-  <script src="/queue_management/static/app.js?v=233"></script>
+  <script src="/queue_management/static/app.js?v=234"></script>
 </body>
 </html>

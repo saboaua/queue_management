@@ -139,7 +139,7 @@
   }
 
   // Light theme default — clean tablet / kiosk look
-  const DEFAULT_THEME = { bg: "#f3f5f8", card: "#ffffff", text: "#0e1726", muted: "#566275", accent: "#2563eb", success: "#16a34a", warning: "#f59e0b", danger: "#dc2626" };
+  const DEFAULT_THEME = { bg: "#f4f6fb", card: "#ffffff", text: "#0b1220", muted: "#5b6578", accent: "#2563eb", success: "#16a34a", warning: "#f59e0b", danger: "#dc2626" };
   // Previous dark default + older light variants: force to current light look so all installs stay consistent.
   const LEGACY_THEMES = [
     { bg: "#080b12", card: "#111722", text: "#f3f5f9", muted: "#8891a3", accent: "#2563eb", success: "#22c55e", warning: "#f5a524", danger: "#f43f5e" },
@@ -260,11 +260,11 @@
 
   function serviceMeta(s) {
     const qq = (state.queues || []).find((x) => x.queue_id === s.queue_id);
-    if (!qq) return { wait: "No wait", sub: "" };
-    if (!qq.waiting_count) return { wait: "No wait", sub: "Available now" };
+    if (!qq) return { wait: "No wait", ahead: "" };
+    if (!qq.waiting_count) return { wait: "No wait", ahead: "Available now" };
     const wait = qq.eta && qq.eta !== "—" ? `~${qq.eta} wait` : `${qq.waiting_count} waiting`;
-    const sub = qq.waiting_count ? `${qq.waiting_count} in queue` : "";
-    return { wait, sub };
+    const ahead = qq.waiting_count === 1 ? "1 ahead" : `${qq.waiting_count} ahead`;
+    return { wait, ahead };
   }
 
   function renderServiceButtons() {
@@ -272,26 +272,29 @@
     if (!box) return;
     const list = enabledServices();
     if (!list.length) {
-      box.innerHTML = "";
+      box.innerHTML = `<div class="rx-empty">No services configured. Add services in Admin → Services.</div>`;
       return;
     }
     if (!selectedServiceId || !list.find((s) => s.id === selectedServiceId)) {
       selectedServiceId = list[0].id;
     }
-    // Kiosk-style vertical cards: icon, name, description, wait badge
+    // Horizontal list rows (QueueFlow-style)
     box.innerHTML = list
       .map((s) => {
         const meta = serviceMeta(s);
         const active = s.id === selectedServiceId ? "active" : "";
         const icon = s.icon || "🎫";
-        const desc = s.description || s.name || "";
-        return `<button type="button" class="service-card ${active}" data-service="${s.id}">
-          <span class="svc-icon-wrap"><span class="svc-icon">${icon}</span></span>
-          <span class="svc-body">
-            <span class="svc-name">${s.name}</span>
-            <span class="svc-desc">${desc !== s.name ? desc : ""}</span>
+        const desc = (s.description || "").trim();
+        return `<button type="button" class="rx-row ${active}" data-service="${s.id}">
+          <span class="rx-row-icon">${icon}</span>
+          <span class="rx-row-main">
+            <span class="rx-row-name">${s.name}</span>
+            ${desc ? `<span class="rx-row-desc">${desc}</span>` : ""}
           </span>
-          <span class="svc-wait">${meta.wait}</span>
+          <span class="rx-row-wait">
+            <span class="rx-wait-time">${meta.wait}</span>
+            <span class="rx-wait-ahead">${meta.ahead}</span>
+          </span>
         </button>`;
       })
       .join("");
@@ -301,19 +304,19 @@
         localStorage.setItem("qm_service", selectedServiceId);
         const svc = list.find((s) => s.id === selectedServiceId);
         if (svc?.queue_id) currentQueueId = svc.queue_id;
+        const svcNameEl = document.getElementById("ticketSvcName");
+        if (svcNameEl) svcNameEl.textContent = svc?.name || "";
         renderServiceButtons();
         render();
-        // One-tap: select + issue ticket immediately (kiosk style)
-        takeTicket();
+        takeTicket(); // one-tap issue
       };
     });
     const tb = $("#btnTake");
     if (tb) {
-      // Collect button still available as secondary confirm / reprint path
       tb.hidden = false;
       tb.textContent = "Collect Ticket";
     }
-    setText("heroHint", "Please tap your desired service below to generate your paper or mobile ticket");
+    setText("heroHint", "Please tap a service category below to receive your printed ticket immediately.");
   }
 
   function renderCashierSelect() {
@@ -945,7 +948,6 @@
   $("#fabMenu")?.addEventListener("click", () => $("#app")?.classList.toggle("show-menu"));
   $("#queueSelect")?.addEventListener("change", (e) => {
     currentQueueId = e.target.value;
-    if ($("#ticketResult")) $("#ticketResult").hidden = true;
     render();
   });
   $("#cashierSelect")?.addEventListener("change", (e) => {
@@ -953,7 +955,7 @@
     localStorage.setItem("qm_cashier", selectedCashierId);
   });
 
-  let issuing = false, ticketTimer = null;
+  let issuing = false;
   async function takeTicket() {
     if (issuing) return;
     issuing = true;
@@ -963,13 +965,13 @@
       const res = await doAction("take_ticket", extra);
       if (res?.result) {
         setText("ticketNumber", res.result.ticket_display);
-        setText("ticketEta", res.result.eta && res.result.eta !== "—" ? `Estimated wait: ${res.result.eta}` : "");
+        setText("ticketEta", res.result.eta && res.result.eta !== "—" ? `Est. wait: ${res.result.eta}` : "");
+        const svc = (state.services || []).find((s) => s.id === selectedServiceId);
+        setText("ticketSvcName", svc?.name || "");
         const box = $("#ticketResult");
         if (box) {
           box.hidden = false;
-          box.scrollIntoView({ behavior: "smooth", block: "nearest" });
-          clearTimeout(ticketTimer);
-          ticketTimer = setTimeout(() => (box.hidden = true), 15000);
+          box.classList.add("issued");
         }
         playCallSound((state.security && state.security.new_ticket_sound) || "beep");
         toast(`Ticket ${res.result.ticket_display} issued`);
