@@ -176,6 +176,25 @@
       if (theme[k]) root.style.setProperty(cssVar, theme[k]);
     });
     root.style.setProperty("--blue-ink", readableOn(theme.accent || DEFAULT_THEME.accent));
+
+    // Derive chrome + border so light/dark both stay consistent
+    const bg = (theme.bg || DEFAULT_THEME.bg).replace("#", "");
+    const n = parseInt(bg.length === 3 ? bg.split("").map((c) => c + c).join("") : bg, 16);
+    const isLight = !isNaN(n) && (((n >> 16) & 255) + ((n >> 8) & 255) + (n & 255)) / 3 > 160;
+    if (isLight) {
+      root.style.setProperty("--border", "#e2e6ee");
+      root.style.setProperty("--chrome", "#ffffff");
+      root.style.setProperty("--chrome-ink", theme.text || DEFAULT_THEME.text);
+      root.style.setProperty("--accent-text", `color-mix(in srgb, ${theme.accent || DEFAULT_THEME.accent} 70%, ${theme.text || DEFAULT_THEME.text})`);
+      root.style.setProperty("--tint", `color-mix(in srgb, ${theme.accent || DEFAULT_THEME.accent} 10%, ${theme.card || DEFAULT_THEME.card})`);
+    } else {
+      root.style.setProperty("--border", "#232c3d");
+      root.style.setProperty("--chrome", "#05070c");
+      root.style.setProperty("--chrome-ink", theme.text || "#f3f5f9");
+      root.style.setProperty("--accent-text", `color-mix(in srgb, ${theme.accent || DEFAULT_THEME.accent} 55%, #fff)`);
+      root.style.setProperty("--tint", `color-mix(in srgb, ${theme.accent || DEFAULT_THEME.accent} 14%, ${theme.card || DEFAULT_THEME.card})`);
+    }
+
     if (!adminDirty) {
       ["bg", "card", "text", "muted", "accent", "success", "warning", "danger"].forEach((k) => {
         const el = document.getElementById(`theme_${k}`);

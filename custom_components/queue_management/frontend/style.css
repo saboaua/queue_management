@@ -68,7 +68,7 @@ button { font: inherit; }
 .btn-blue { background: var(--text); color: var(--card); border-color: var(--text); }
 .btn-blue:hover { background: color-mix(in srgb, var(--text) 85%, #fff); border-color: transparent; }
 .btn-med.btn-green { color: var(--accent-text); border-color: color-mix(in srgb, var(--blue) 45%, transparent); background: var(--tint); }
-.btn-warn { color: #8a5a06; background: color-mix(in srgb, var(--orange) 14%, var(--card)); border-color: color-mix(in srgb, var(--orange) 50%, transparent); }
+.btn-warn { color: #92400e; background: color-mix(in srgb, var(--orange) 14%, var(--card)); border-color: color-mix(in srgb, var(--orange) 50%, transparent); }
 .btn-danger { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, transparent); }
 .btn-danger:hover { background: color-mix(in srgb, var(--red) 8%, var(--card)); border-color: var(--red); }
 .btn-x { border: 0; background: none; color: var(--muted); cursor: pointer; width: 36px; height: 36px; border-radius: 6px; }
@@ -77,13 +77,27 @@ kbd { font: 600 .75rem var(--mono); padding: 2px 7px; margin-left: 10px; border:
 .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 .spaced-top { margin-top: 12px; }
 
-/* Ticket (reception + calling desk): black stock, tear line, barcode */
+/* Ticket (reception + calling desk) — light card with soft accent */
 .ticket-result, .now-serving-box {
-  --cut: 108px; position: relative; background: radial-gradient(120% 140% at 50% 0%, color-mix(in srgb, var(--blue) 16%, var(--card)), var(--card) 62%); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius); text-align: center; overflow: hidden;
+  --cut: 108px; position: relative;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius);
+  text-align: center;
+  overflow: hidden;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--text) 6%, transparent), 0 8px 24px color-mix(in srgb, var(--blue) 6%, transparent);
 }
-.ticket-result::after, .now-serving-box::after { content: ""; position: absolute; left: 24px; right: 24px; bottom: var(--cut); border-top: 1px solid var(--border); }
-.label, .display-label { font: 650 .8125rem var(--mono); letter-spacing: .06em; text-transform: uppercase; opacity: .55; }
-.big-number, .number, .display-number { font-weight: 700; letter-spacing: -.04em; line-height: 1; color: #fff; text-shadow: 0 0 46px color-mix(in srgb, var(--blue) 85%, #fff), 0 0 14px color-mix(in srgb, var(--blue) 60%, #fff); }
+.ticket-result::after, .now-serving-box::after { content: ""; position: absolute; left: 24px; right: 24px; bottom: var(--cut); border-top: 1px dashed var(--border); }
+.label, .display-label { font: 650 .8125rem var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); opacity: 1; }
+/* Light theme: large numbers use dark ink (no forced white / glow) */
+.big-number, .number, .display-number {
+  font-weight: 700;
+  letter-spacing: -.04em;
+  line-height: 1;
+  color: var(--text);
+  text-shadow: none;
+}
 
 /* Reception kiosk */
 #app.kiosk #mode-reception.active { min-height: calc(100vh - 96px); display: flex; flex-direction: column; justify-content: center; }
@@ -146,8 +160,20 @@ label, .cashier-pick label { font-size: .8125rem; font-weight: 600; color: var(-
 main:has(#mode-display.active) { max-width: none; padding: 28px 32px; }
 .board { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 22px; height: calc(100vh - 116px); }
 .board-main { display: grid; grid-template-rows: 1fr auto; gap: 20px; min-width: 0; }
-.board-call { border-radius: var(--radius); padding: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 18px; }
-.board-call .display-label { display: flex; align-items: center; gap: 12px; font-size: clamp(1rem, 1.6vw, 1.3rem); opacity: .7; }
+.board-call {
+  border-radius: var(--radius);
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 18px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--text) 6%, transparent);
+}
+.board-call .display-label { display: flex; align-items: center; gap: 12px; font-size: clamp(1rem, 1.6vw, 1.3rem); color: var(--muted); opacity: 1; }
 .board-call .display-label::before { content: ""; width: 14px; height: 14px; border-radius: 50%; background: var(--blue); animation: pulse 2s ease-out infinite; }
 .display-number { font-size: clamp(6.5rem, 17vw, 15rem); }
 .display-cashier { display: flex; align-items: baseline; gap: 10px; font-size: clamp(1.3rem, 2.6vw, 2.2rem); font-weight: 600; }
