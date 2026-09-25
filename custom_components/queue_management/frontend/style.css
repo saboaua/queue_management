@@ -135,7 +135,8 @@ main:has(#mode-reception.active) {
   color: #0e1726;
 }
 .rx-header { margin-bottom: 4px; }
-.rx-badge {
+.board-badge { margin-bottom: 14px; }
+.section-badge, .rx-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -149,7 +150,7 @@ main:has(#mode-reception.active) {
   border-radius: 999px;
   margin-bottom: 12px;
 }
-.rx-badge::before {
+.section-badge::before, .rx-badge::before {
   content: "";
   width: 7px; height: 7px;
   border-radius: 50%;
@@ -525,7 +526,11 @@ main:has(#mode-display.active) { max-width: none; padding: 28px 32px; }
 .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; }
 .kpi-card { display: flex; gap: 14px; align-items: center; padding: 20px; border-left: 1px solid var(--border); }
 .kpi-card:first-child { border-left: 0; }
-.kpi-icon { width: 38px; height: 38px; border-radius: 8px; display: grid; place-items: center; flex: none; background: var(--bg); color: var(--text); }
+.kpi-icon { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; flex: none; background: var(--bg); color: var(--text); }
+.kpi-icon-blue { background: color-mix(in srgb, var(--blue) 12%, var(--card)); color: var(--blue); }
+.kpi-icon-green { background: color-mix(in srgb, var(--green) 14%, var(--card)); color: var(--green); }
+.kpi-icon-orange { background: color-mix(in srgb, var(--orange) 16%, var(--card)); color: var(--orange); }
+.kpi-icon-purple { background: color-mix(in srgb, #7c3aed 14%, var(--card)); color: #7c3aed; }
 .kpi-icon svg { width: 19px; height: 19px; }
 .kpi-value { font-size: 2rem; font-weight: 600; line-height: 1.05; letter-spacing: -.05em; }
 .kpi-label { color: var(--muted); font-size: .8125rem; }
@@ -537,8 +542,8 @@ main:has(#mode-display.active) { max-width: none; padding: 28px 32px; }
 .badge { display: inline-block; padding: 2px 9px; border-radius: 4px; background: var(--bg); color: var(--text); font: 600 .75rem var(--mono); border: 1px solid var(--border); }
 .peak-chart { display: flex; align-items: flex-end; gap: 3px; height: 170px; border-bottom: 1px solid var(--border); }
 .peak-bar-col { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; min-width: 0; }
-.peak-bar { width: 100%; background: color-mix(in srgb, var(--text) 16%, var(--card)); border-radius: 2px 2px 0 0; }
-.peak-bar.peak { background: var(--blue); }
+.peak-bar { width: 100%; background: color-mix(in srgb, var(--blue) 16%, var(--card)); border-radius: 3px 3px 0 0; }
+.peak-bar.peak { background: var(--blue); box-shadow: 0 0 0 1px color-mix(in srgb, var(--blue) 30%, transparent); }
 .peak-bar-label { height: 20px; margin-bottom: -22px; font: .6875rem var(--mono); color: var(--muted); white-space: nowrap; }
 .chart-card .peak-chart { margin-bottom: 26px; }
 .donut-wrap { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
@@ -606,8 +611,8 @@ input[type=color] { width: 48px; height: 36px; border: 1px solid var(--border); 
 .modal-card input { margin: 14px 0; text-align: center; font: 600 1.4rem var(--mono); letter-spacing: .3em; }
 .modal-card .btn-row { justify-content: flex-end; margin-top: 4px; }
 .error-text { color: var(--red); font-weight: 600; margin: 10px 0 0; }
-.fab { display: none; position: fixed; right: 20px; bottom: 20px; width: 50px; height: 50px; border-radius: 10px; border: 0; background: var(--blue); color: var(--blue-ink); font-size: 1.3rem; cursor: pointer; z-index: 90; place-items: center; opacity: .95; box-shadow: 0 4px 14px color-mix(in srgb, var(--blue) 35%, transparent); }
-.fab-modes { display: none; position: fixed; right: 20px; bottom: 82px; flex-direction: column; gap: 4px; z-index: 90; }
+.fab { display: none; position: fixed; right: 16px; top: calc(env(safe-area-inset-top, 0px) + 14px); width: 46px; height: 46px; border-radius: 10px; border: 0; background: var(--blue); color: var(--blue-ink); font-size: 1.2rem; cursor: pointer; z-index: 90; place-items: center; opacity: .95; box-shadow: 0 4px 14px color-mix(in srgb, var(--blue) 35%, transparent); }
+.fab-modes { display: none; position: fixed; right: 16px; top: calc(env(safe-area-inset-top, 0px) + 64px); flex-direction: column; gap: 4px; z-index: 90; }
 .fab-modes .mode-btn { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; text-align: left; box-shadow: 0 4px 12px color-mix(in srgb, var(--text) 10%, transparent); }
 #app.kiosk .topbar { display: none; }
 #app.kiosk .fab { display: grid; }

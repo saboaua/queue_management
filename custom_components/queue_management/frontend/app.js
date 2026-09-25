@@ -607,7 +607,7 @@
     updateLogoPreview(logo);
   }
 
-  const DONUT_PALETTE = ["var(--blue)", "var(--text)", "#7c8794", "var(--green)", "#b45309", "#c5cad2"];
+  const DONUT_PALETTE = ["var(--blue)", "var(--green)", "var(--orange)", "#7c3aed", "#0891b2", "#c5cad2"];
 
   function fmtHour(h) {
     const period = h < 12 ? "AM" : "PM";
