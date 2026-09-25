@@ -31,14 +31,14 @@ MAX_SERVICE_SAMPLES = 50
 MAX_DAILY_STATS_DAYS = 30
 
 DEFAULT_THEME = {
-    "bg": "#080b12",
-    "card": "#111722",
-    "text": "#f3f5f9",
-    "muted": "#8891a3",
+    "bg": "#f4f6fb",
+    "card": "#ffffff",
+    "text": "#0b1220",
+    "muted": "#5b6578",
     "accent": "#2563eb",
-    "success": "#22c55e",
-    "warning": "#f5a524",
-    "danger": "#f43f5e",
+    "success": "#16a34a",
+    "warning": "#f59e0b",
+    "danger": "#dc2626",
 }
 
 DEFAULT_PRINT_TEMPLATE = {
