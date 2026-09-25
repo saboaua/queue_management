@@ -87,13 +87,27 @@
     return body;
   }
 
+  let themeMigrated = false;
   async function loadState() {
     try {
       state = await api("state");
       if (!currentQueueId || !state.queues.find((q) => q.queue_id === currentQueueId)) {
         currentQueueId = state.queues[0]?.queue_id || "main";
       }
-      applyTheme(state.theme || {});
+      const incoming = state.theme || {};
+      const needsLight = isLegacyTheme(incoming);
+      applyTheme(incoming);
+      // Persist light defaults once so Calling Desk / Display / Manager stop reloading dark from storage
+      if (needsLight && !themeMigrated) {
+        themeMigrated = true;
+        try {
+          await api("action", {
+            method: "POST",
+            body: JSON.stringify({ action: "save_theme", theme: DEFAULT_THEME }),
+          });
+          state.theme = { ...DEFAULT_THEME };
+        } catch (_) { /* non-fatal */ }
+      }
       maybePlayNewTicketSound();
       render();
       hideToast();
@@ -138,16 +152,28 @@
     return (state.services || []).filter((s) => s.enabled);
   }
 
-  // Light theme default — clean tablet / kiosk look
+  // Light theme default — QueueFlow SaaS look (all modes)
   const DEFAULT_THEME = { bg: "#f4f6fb", card: "#ffffff", text: "#0b1220", muted: "#5b6578", accent: "#2563eb", success: "#16a34a", warning: "#f59e0b", danger: "#dc2626" };
-  // Previous dark default + older light variants: force to current light look so all installs stay consistent.
+  // Exact older shipped palettes
   const LEGACY_THEMES = [
     { bg: "#080b12", card: "#111722", text: "#f3f5f9", muted: "#8891a3", accent: "#2563eb", success: "#22c55e", warning: "#f5a524", danger: "#f43f5e" },
     { bg: "#f7f8fc", card: "#ffffff", text: "#0b0f1e", muted: "#545a72", accent: "#2f6fed", success: "#00b876", warning: "#ff8a00", danger: "#ef3f3f" },
     { bg: "#f3f5f8", card: "#ffffff", text: "#0e1726", muted: "#566275", accent: "#0f766e", success: "#1f9d55", warning: "#f59e0b", danger: "#dc2626" },
     { bg: "#f3f4f6", card: "#ffffff", text: "#0b0f14", muted: "#5a6472", accent: "#ff4a1c", success: "#0e8a5f", warning: "#f59e0b", danger: "#c8231b" },
   ];
-  const isLegacyTheme = (t) => LEGACY_THEMES.some((L) => Object.keys(L).every((k) => String(t[k] || "").toLowerCase() === L[k]));
+  function themeBgIsDark(t) {
+    const raw = String((t && t.bg) || "").replace("#", "");
+    const h = raw.length === 3 ? raw.split("").map((c) => c + c).join("") : raw;
+    const n = parseInt(h, 16);
+    if (isNaN(n)) return false;
+    const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    return (r * 299 + g * 587 + b * 114) / 1000 < 80;
+  }
+  const isLegacyTheme = (t) =>
+    !t ||
+    !Object.keys(t).length ||
+    themeBgIsDark(t) ||
+    LEGACY_THEMES.some((L) => Object.keys(L).every((k) => String(t[k] || "").toLowerCase() === L[k]));
   // Text color that stays readable on the accent (buttons, ticket highlights)
   function readableOn(hex) {
     const h = String(hex || "").replace("#", "");
@@ -159,7 +185,7 @@
   }
 
   function applyTheme(theme) {
-    // Installs that still hold a previous default palette get the new light look; custom palettes are kept.
+    // Dark / legacy defaults → force light across Reception, Calling Desk, Display, Manager, Admin
     if (!theme || !Object.keys(theme).length || isLegacyTheme(theme)) theme = DEFAULT_THEME;
     const root = document.documentElement;
     const map = {

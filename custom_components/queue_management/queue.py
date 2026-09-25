@@ -30,6 +30,7 @@ MAX_HISTORY = 200
 MAX_SERVICE_SAMPLES = 50
 MAX_DAILY_STATS_DAYS = 30
 
+# Light QueueFlow defaults (must match frontend DEFAULT_THEME)
 DEFAULT_THEME = {
     "bg": "#f4f6fb",
     "card": "#ffffff",
@@ -39,6 +40,17 @@ DEFAULT_THEME = {
     "success": "#16a34a",
     "warning": "#f59e0b",
     "danger": "#dc2626",
+}
+
+# Prior default backgrounds that should be upgraded to light on load
+_LEGACY_THEME_BG = {
+    "#080b12",
+    "#05070c",
+    "#0b0f14",
+    "#111722",
+    "#f7f8fc",
+    "#f3f5f8",
+    "#f3f4f6",
 }
 
 DEFAULT_PRINT_TEMPLATE = {
@@ -229,7 +241,13 @@ class QueueManager:
             for sdata in data.get("services", []):
                 s = ServiceType.from_dict(sdata)
                 self.services[s.id] = s
-            self.theme = {**DEFAULT_THEME, **(data.get("theme") or {})}
+            loaded_theme = {**DEFAULT_THEME, **(data.get("theme") or {})}
+            # Upgrade previous dark / legacy default palettes to the current light theme
+            bg = str(loaded_theme.get("bg") or "").lower()
+            if bg in _LEGACY_THEME_BG or QueueManager._theme_is_dark(loaded_theme):
+                self.theme = dict(DEFAULT_THEME)
+            else:
+                self.theme = loaded_theme
             self.print_template = {
                 **DEFAULT_PRINT_TEMPLATE,
                 **(data.get("print_template") or {}),
@@ -871,6 +889,20 @@ class QueueManager:
         self.services = new_map
         await self.async_save()
         self._notify()
+
+    @staticmethod
+    def _theme_is_dark(theme: dict[str, Any]) -> bool:
+        """True when background luminance is low (legacy dark default)."""
+        bg = str(theme.get("bg") or "").lstrip("#")
+        if len(bg) == 3:
+            bg = "".join(c * 2 for c in bg)
+        if len(bg) != 6:
+            return False
+        try:
+            r, g, b = int(bg[0:2], 16), int(bg[2:4], 16), int(bg[4:6], 16)
+        except ValueError:
+            return False
+        return (r * 299 + g * 587 + b * 114) / 1000 < 80
 
     async def async_save_theme(self, theme: dict[str, Any]) -> None:
         cleaned = dict(DEFAULT_THEME)

@@ -8,6 +8,8 @@ A standalone, professional **Queue & Ticket Management System** that runs entire
 
 No complex Lovelace card setup is required. The integration registers its own dedicated sidebar panel and a full-screen web app that syncs across tablets, staff counters, waiting-area TVs, and desktops.
 
+**Version 1.13.0** — light theme by default across all modes; automatic migration from older dark themes.
+
 ---
 
 ## ✨ Features
@@ -19,11 +21,12 @@ No complex Lovelace card setup is required. The integration registers its own de
 - **Real-time sync** — all connected clients refresh about every 3 seconds
 - **Persistent storage** — queues, cashiers, services, theme, and history survive HA restarts
 - **Multi-queue support** — independent lines (e.g. Main, VIP, Express) with optional ticket prefixes
-- **Service categories** — reception shows configurable service types (General, Cashier, Support, …) with wait estimates
+- **Service categories** — reception shows configurable service types with wait estimates
 - **Cashier / counter management** — staff identities, idle / serving / break status
 - **ETA & wait metrics** — estimated wait from recent service duration samples
 - **Daily analytics** — issued / completed counts, hourly peaks, service mix (Manager view)
-- **Light theme by default** — clean SaaS-style UI with Admin color customization
+- **Light theme by default** — QueueFlow-style UI on every page; Admin color customization
+- **Dark-theme migration** — stored dark/legacy defaults are upgraded to light on load (and persisted once from the UI)
 - **Optional Admin/Manager PIN** — protect settings and analytics
 - **Custom logo URL** — branding on reception / header
 - **Native HA entities** — sensors and buttons per queue for automations and Lovelace
@@ -35,9 +38,9 @@ No complex Lovelace card setup is required. The integration registers its own de
 ### Reception (kiosk / tablet)
 - **Welcome + service list** — large touch rows with icon, name, optional description, wait time, and queue depth
 - **One-tap ticket issue** — selecting a service issues a ticket immediately
-- **Always-visible ticket panel** — number, service name, ETA, “Collect Ticket” CTA
+- **Always-visible ticket panel** — number, service name, ETA, Collect Ticket CTA
 - **Bottom KPI bar** — customers waiting, estimated wait, now serving
-- **Self-service badge & live clock** — kiosk-oriented layout optimized for light theme contrast
+- **Self-service badge & live clock** — high-contrast light layout for tablets
 
 ### Calling Desk (staff counter)
 - **Cashier picker** — serve as a specific counter / teller
@@ -48,7 +51,7 @@ No complex Lovelace card setup is required. The integration registers its own de
 - **Live stats** — waiting count, ETA, desk status
 
 ### Display (waiting-area TV)
-- **Large “Now calling” board** — ticket number, cashier / counter label
+- **Large "Now calling" board** — ticket number, cashier / counter label
 - **Per-counter strip** — which desk is serving which ticket
 - **Next-up list** — upcoming tickets
 - **Meta row** — waiting count and status
@@ -69,7 +72,7 @@ No complex Lovelace card setup is required. The integration registers its own de
 | **Services** | Reception service buttons: name, icon, linked queue, enabled |
 | **Queues** | Create queues with ID, display name, ticket prefix, start number; reset/delete |
 | **Appearance** | Theme colors (background, cards, text, accent, success, warning, danger); reset to light defaults |
-| **Announcements** | Admin PIN; TTS on/off; media_player + TTS entity; announce templates (with / without cashier); logo URL; test announcement |
+| **Announcements** | Admin PIN; TTS on/off; media_player + TTS entity; announce templates; logo URL; test announcement |
 | **Ticket printing** | Logo, title, header, footer, extra line, paper width, show number / queue name / datetime; live preview |
 
 ---
@@ -85,6 +88,18 @@ No complex Lovelace card setup is required. The integration registers its own de
 | **⚙️ Admin** | Back-office PC | Cashiers, services, queues, theme, TTS, print template, PIN |
 
 Switch modes from the top bar (or the floating menu in kiosk mode).
+
+---
+
+## 🎨 Theme (light by default)
+
+- **Default palette:** soft gray background (`#f4f6fb`), white cards, dark text (`#0b1220`), blue accent (`#2563eb`)
+- **Applies to all modes** — Reception, Calling Desk, Display, Manager, and Admin
+- **Migration:** if Home Assistant storage still holds a dark or older default theme, it is upgraded to light on load (backend + frontend). The UI also saves light defaults once so dark does not return after refresh
+- **Customize:** Admin → Appearance → pick colors → Save theme
+- **Reset:** Admin → Appearance → Reset defaults
+
+If a page still looks dark after upgrading, hard-refresh the browser (`Ctrl+Shift+R` / `Cmd+Shift+R`) or open Admin → Appearance → **Reset defaults**.
 
 ---
 
@@ -123,7 +138,7 @@ After install and restart:
 2. **Panel URL** — `http://homeassistant.local:8123/queue-management`  
 3. **Fullscreen kiosk** — `http://homeassistant.local:8123/queue_management/static/index.html`  
 
-> **Tip:** On a tablet, open the kiosk URL and use **Add to Home Screen** for an app-like experience. Reception and Display modes hide chrome in kiosk view.
+> **Tip:** On a tablet, open the kiosk URL and use **Add to Home Screen**. Reception and Display modes hide chrome in kiosk view.
 
 ---
 
@@ -173,7 +188,7 @@ Example dashboards and automations are under `examples/` and `blueprints/automat
 
 1. **Admin → Announcements**  
 2. Enable **Announce when calling**  
-3. Select a **media_player** (and TTS entity if required by your setup)  
+3. Select a **media_player** (and TTS entity if required)  
 4. Edit templates (with / without cashier name)  
 5. Use **Test announcement**  
 
@@ -220,15 +235,6 @@ An access-links sensor exposes panel/kiosk URLs for convenience.
 
 ---
 
-## 🎨 Theme
-
-- **Default:** light QueueFlow-style palette (soft gray background, white cards, dark text, blue accent)  
-- **Admin → Appearance:** customize background, cards, text, muted, accent, success, warning, danger  
-- **Reset defaults** restores the built-in light theme  
-- Theme is stored with integration data and applied to all modes  
-
----
-
 ## 📂 Project structure
 
 ```text
@@ -244,30 +250,24 @@ queue_management_hacs/
 │   ├── dashboard_calling.yaml
 │   └── dashboard_display.yaml
 └── custom_components/queue_management/
-    ├── __init__.py          # Setup, panel, services
-    ├── manifest.json
+    ├── __init__.py
+    ├── manifest.json        # version 1.13.0
     ├── const.py
     ├── config_flow.py
-    ├── queue.py             # Engine, storage, cashiers, services, analytics
-    ├── http.py              # REST state/action API + static files
-    ├── sensor.py            # Queue sensors
-    ├── button.py            # Take / Call next / Reset buttons
+    ├── queue.py             # Engine + dark→light theme migration
+    ├── http.py
+    ├── sensor.py
+    ├── button.py
     ├── services.yaml
     ├── strings.json
     ├── translations/en.json
     ├── brand/
     └── frontend/
-        ├── index.html       # Multi-mode web app
-        ├── style.css        # Light theme + kiosk reception layout
-        ├── app.js           # UI logic & 3s poll sync
-        └── fonts/           # Geist / Geist Mono
+        ├── index.html
+        ├── style.css        # Light theme (all modes)
+        ├── app.js           # UI + theme migration persist
+        └── fonts/
 ```
-
----
-
-## 🧪 Example: Lovelace reception (optional)
-
-If you prefer classic Lovelace instead of the built-in panel, see `examples/dashboard_reception.yaml` (button + sensors). The dedicated **Reception** mode in the panel is recommended for tablets.
 
 ---
 
