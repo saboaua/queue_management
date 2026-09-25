@@ -99,33 +99,247 @@ kbd { font: 600 .75rem var(--mono); padding: 2px 7px; margin-left: 10px; border:
   text-shadow: none;
 }
 
-/* Reception kiosk */
-#app.kiosk #mode-reception.active { min-height: calc(100vh - 96px); display: flex; flex-direction: column; justify-content: center; }
-#mode-reception { max-width: 1000px; margin: 0 auto; width: 100%; }
-.hero { margin-bottom: 26px; }
-.hero h1 { font-size: clamp(2.2rem, 5.5vw, 3.6rem); font-weight: 650; letter-spacing: -.045em; }
-.hero p { margin: 6px 0 0; color: var(--muted); font-size: 1.15rem; }
-.service-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 20px; }
-.service-btn { display: flex; align-items: center; gap: 16px; text-align: left; padding: 20px 22px; min-height: 120px; background: var(--card); border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer; color: var(--text); position: relative; box-shadow: 0 1px 3px color-mix(in srgb, var(--text) 6%, transparent); }
-.service-btn:hover { border-color: var(--blue); box-shadow: 0 2px 8px color-mix(in srgb, var(--blue) 12%, transparent); }
-.service-btn:active { background: var(--tint); transform: scale(.985); }
-.service-btn .svc-icon { width: 64px; height: 64px; border-radius: 10px; background: var(--bg); display: grid; place-items: center; font-size: 1.9rem; flex: none; }
-.svc-text { display: grid; gap: 4px; min-width: 0; }
-.service-btn .svc-name { font-weight: 650; font-size: 1.35rem; letter-spacing: -.02em; line-height: 1.15; }
-.svc-meta { font: 500 .8125rem var(--mono); color: var(--muted); }
-.service-btn:active .svc-meta { color: inherit; opacity: .7; }
-.service-btn.active { border-color: var(--blue); box-shadow: 0 0 0 2px color-mix(in srgb, var(--blue) 35%, transparent); background: var(--tint); }
-.ticket-result { max-width: 520px; margin: 0 0 24px; padding: 26px 24px var(--cut); }
-.ticket-result .number { font-size: clamp(4.6rem, 18vw, 8rem); margin: 8px 0 30px; }
-.ticket-result .eta { position: absolute; left: 0; right: 0; bottom: calc(var(--cut) - 44px); font-weight: 650; font-size: 1.125rem; color: var(--accent-text); }
-.ticket-result .hint { position: absolute; left: 0; right: 0; bottom: 44px; opacity: .65; font-size: .875rem; }
-.ticket-result .eta:empty { display: none; }
+/* ========== Reception / Kiosk (tablet) ========== */
+#mode-reception {
+  max-width: none;
+  margin: 0;
+  width: 100%;
+  padding: 0;
+}
+#app.kiosk #mode-reception.active,
+#mode-reception.active {
+  min-height: calc(100vh - 60px);
+  display: flex;
+  flex-direction: column;
+}
+main:has(#mode-reception.active) {
+  max-width: none;
+  padding: 0;
+  background: linear-gradient(165deg, #eef2ff 0%, #f3f5f8 40%, #e8eefc 100%);
+}
+#app.kiosk main:has(#mode-reception.active) {
+  min-height: 100vh;
+}
+
+.kiosk-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 20px 22px 28px;
+  min-height: inherit;
+}
+.kiosk-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  font-size: .875rem;
+  color: var(--muted);
+}
+.kiosk-loc { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text); }
+.kiosk-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 25%, transparent);
+  flex: none;
+}
+.kiosk-clock { font-family: var(--mono); font-weight: 600; letter-spacing: .02em; }
+
+.kiosk-hero {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.kiosk-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 650 .75rem var(--mono);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 10%, #fff);
+  border: 1px solid color-mix(in srgb, var(--blue) 22%, transparent);
+  padding: 5px 12px;
+  border-radius: 999px;
+  margin-bottom: 12px;
+}
+.kiosk-hero h1 {
+  font-size: clamp(1.9rem, 6vw, 2.6rem);
+  font-weight: 700;
+  letter-spacing: -.04em;
+  color: var(--text);
+  margin: 0 0 8px;
+}
+.kiosk-hero p {
+  margin: 0 auto;
+  max-width: 420px;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+/* Service cards — 2-column kiosk grid */
+.service-grid,
+.kiosk-services {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-bottom: 22px;
+  flex: 1;
+  align-content: start;
+}
+.service-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+  padding: 20px 18px 16px;
+  min-height: 148px;
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  cursor: pointer;
+  color: var(--text);
+  position: relative;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--text) 5%, transparent);
+  transition: border-color .15s ease, box-shadow .15s ease, transform .08s ease;
+}
+.service-card:hover {
+  border-color: color-mix(in srgb, var(--blue) 45%, var(--border));
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--blue) 12%, transparent);
+}
+.service-card:active { transform: scale(.98); }
+.service-card.active {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 22%, transparent);
+  background: color-mix(in srgb, var(--blue) 4%, #fff);
+}
+.svc-icon-wrap {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--blue) 10%, #f0f4ff);
+  display: grid;
+  place-items: center;
+}
+.service-card .svc-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+.svc-body { display: grid; gap: 2px; min-width: 0; width: 100%; }
+.service-card .svc-name {
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: -.02em;
+  line-height: 1.2;
+}
+.service-card .svc-desc {
+  font-size: .8125rem;
+  color: var(--muted);
+  line-height: 1.3;
+  min-height: 1.1em;
+}
+.service-card .svc-wait {
+  margin-top: auto;
+  font: 600 .8125rem var(--mono);
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.service-card .svc-wait::before {
+  content: "";
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  flex: none;
+}
+
+/* Collect Ticket CTA */
+.kiosk-actions {
+  margin-top: auto;
+  padding-top: 8px;
+}
+.btn-collect {
+  width: 100%;
+  min-height: 56px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: -.01em;
+  cursor: pointer;
+  box-shadow: 0 8px 24px color-mix(in srgb, #2563eb 35%, transparent);
+  transition: transform .08s ease, box-shadow .15s ease;
+}
+.btn-collect:hover {
+  box-shadow: 0 10px 28px color-mix(in srgb, #2563eb 45%, transparent);
+}
+.btn-collect:active { transform: scale(.98); }
+
+.kiosk-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: .8125rem;
+  color: var(--muted);
+}
+.kiosk-status { display: flex; align-items: center; gap: 8px; font-weight: 550; color: var(--text); }
+.kiosk-stats { display: flex; flex-wrap: wrap; gap: 12px 18px; }
+.kiosk-stats strong { color: var(--text); font-weight: 650; font-family: var(--mono); }
+
+/* Ticket result overlay on kiosk */
+#mode-reception .ticket-result {
+  max-width: 100%;
+  margin: 0 0 20px;
+  padding: 28px 24px var(--cut);
+  border-radius: 16px;
+}
+#mode-reception .ticket-result .number {
+  font-size: clamp(4rem, 16vw, 6.5rem);
+  margin: 8px 0 28px;
+  color: var(--text);
+}
+#mode-reception .ticket-result .eta {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: calc(var(--cut) - 44px);
+  font-weight: 650;
+  font-size: 1.125rem;
+  color: var(--accent-text);
+}
+#mode-reception .ticket-result .hint {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 44px;
+  opacity: .65;
+  font-size: .875rem;
+}
+#mode-reception .ticket-result .eta:empty { display: none; }
+
+/* Shared stats (used by other modes) */
 .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); margin: 20px 0; }
 .stat { padding: 14px 20px; border-left: 1px solid var(--border); }
 .stat:first-child { border-left: 0; }
 .stat-value { font-size: 1.6rem; font-weight: 600; line-height: 1.15; letter-spacing: -.03em; }
 .stat-label { color: var(--muted); font-size: .8125rem; margin-top: 2px; }
 .stat-waiting .stat-value { color: #b45309; } .stat-idle .stat-value { color: var(--green); }
+
+@media (max-width: 480px) {
+  .kiosk-services { grid-template-columns: 1fr; }
+  .service-card { min-height: 120px; }
+  .kiosk-shell { padding: 16px 16px 24px; }
+}
 
 /* Calling desk = operator console */
 #mode-calling { max-width: 1140px; margin: 0 auto; }

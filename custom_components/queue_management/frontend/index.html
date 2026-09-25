@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Queue Management</title>
-  <link rel="stylesheet" href="/queue_management/static/style.css?v=232" />
+  <link rel="stylesheet" href="/queue_management/static/style.css?v=233" />
 </head>
 <body>
   <div id="app">
@@ -30,26 +30,49 @@
       <div id="uiLogoBar" class="ui-logo-bar" hidden>
         <img id="uiLogoImg" alt="Logo" />
       </div>
-      <!-- RECEPTION -->
+      <!-- RECEPTION / KIOSK -->
       <section id="mode-reception" class="mode-panel active">
-        <div class="hero">
-          <h1>Welcome</h1>
-          <p id="heroHint">Choose a service, then take your number.</p>
-        </div>
-        <div class="ticket-result" id="ticketResult" hidden>
-          <div class="label">Your number</div>
-          <div class="number" id="ticketNumber">—</div>
-          <div class="eta" id="ticketEta"></div>
-          <div class="hint">Please wait for your number to be called</div>
-        </div>
-        <div id="serviceButtons" class="service-grid"></div>
-        <button id="btnTake" class="btn-huge btn-green" type="button" aria-label="Take a ticket">
-          🎫 Take a ticket
-        </button>
-        <div class="stats-row">
-          <div class="stat"><div class="stat-value" id="rWaiting">0</div><div class="stat-label">Waiting</div></div>
-          <div class="stat"><div class="stat-value" id="rEta">—</div><div class="stat-label">Est. wait</div></div>
-          <div class="stat"><div class="stat-value" id="rCurrent">—</div><div class="stat-label">Now serving</div></div>
+        <div class="kiosk-shell">
+          <header class="kiosk-top">
+            <div class="kiosk-loc">
+              <span class="kiosk-dot"></span>
+              <span id="kioskLocName">Reception Kiosk</span>
+            </div>
+            <div class="kiosk-clock" id="kioskClock"></div>
+          </header>
+
+          <div class="kiosk-hero">
+            <div class="kiosk-badge">Smart Ticket System</div>
+            <h1>Take Your Ticket</h1>
+            <p id="heroHint">Please tap your desired service below to generate your paper or mobile ticket</p>
+          </div>
+
+          <div class="ticket-result" id="ticketResult" hidden>
+            <div class="label">Your number</div>
+            <div class="number" id="ticketNumber">—</div>
+            <div class="eta" id="ticketEta"></div>
+            <div class="hint">Please wait for your number to be called</div>
+          </div>
+
+          <div id="serviceButtons" class="service-grid kiosk-services"></div>
+
+          <div class="kiosk-actions">
+            <button id="btnTake" class="btn-collect" type="button" aria-label="Collect ticket">
+              Collect Ticket
+            </button>
+          </div>
+
+          <footer class="kiosk-foot">
+            <div class="kiosk-status">
+              <span class="kiosk-dot"></span>
+              <span>Ticket Dispenser Ready</span>
+            </div>
+            <div class="kiosk-stats">
+              <span><strong id="rWaiting">0</strong> waiting</span>
+              <span>Est. <strong id="rEta">—</strong></span>
+              <span>Now <strong id="rCurrent">—</strong></span>
+            </div>
+          </footer>
         </div>
       </section>
 
@@ -370,6 +393,6 @@
     </div>
     <div id="toast" class="toast" hidden></div>
   </div>
-  <script src="/queue_management/static/app.js?v=232"></script>
+  <script src="/queue_management/static/app.js?v=233"></script>
 </body>
 </html>

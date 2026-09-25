@@ -260,9 +260,11 @@
 
   function serviceMeta(s) {
     const qq = (state.queues || []).find((x) => x.queue_id === s.queue_id);
-    if (!qq) return "";
-    if (!qq.waiting_count) return "No wait";
-    return `${qq.waiting_count} waiting` + (qq.eta && qq.eta !== "—" ? ` · ~${qq.eta}` : "");
+    if (!qq) return { wait: "No wait", sub: "" };
+    if (!qq.waiting_count) return { wait: "No wait", sub: "Available now" };
+    const wait = qq.eta && qq.eta !== "—" ? `~${qq.eta} wait` : `${qq.waiting_count} waiting`;
+    const sub = qq.waiting_count ? `${qq.waiting_count} in queue` : "";
+    return { wait, sub };
   }
 
   function renderServiceButtons() {
@@ -276,13 +278,22 @@
     if (!selectedServiceId || !list.find((s) => s.id === selectedServiceId)) {
       selectedServiceId = list[0].id;
     }
+    // Kiosk-style vertical cards: icon, name, description, wait badge
     box.innerHTML = list
-      .map(
-        (s) =>
-          `<button type="button" class="service-btn ${
-            s.id === selectedServiceId ? "active" : ""
-          }" data-service="${s.id}"><span class="svc-icon">${s.icon || "🎫"}</span><span class="svc-text"><span class="svc-name">${s.name}</span><span class="svc-meta">${serviceMeta(s)}</span></span></button>`
-      )
+      .map((s) => {
+        const meta = serviceMeta(s);
+        const active = s.id === selectedServiceId ? "active" : "";
+        const icon = s.icon || "🎫";
+        const desc = s.description || s.name || "";
+        return `<button type="button" class="service-card ${active}" data-service="${s.id}">
+          <span class="svc-icon-wrap"><span class="svc-icon">${icon}</span></span>
+          <span class="svc-body">
+            <span class="svc-name">${s.name}</span>
+            <span class="svc-desc">${desc !== s.name ? desc : ""}</span>
+          </span>
+          <span class="svc-wait">${meta.wait}</span>
+        </button>`;
+      })
       .join("");
     box.querySelectorAll("[data-service]").forEach((btn) => {
       btn.onclick = () => {
@@ -292,17 +303,17 @@
         if (svc?.queue_id) currentQueueId = svc.queue_id;
         renderServiceButtons();
         render();
-        // Selection only — user confirms with the big "Take a ticket" button (tablet-friendly)
+        // One-tap: select + issue ticket immediately (kiosk style)
+        takeTicket();
       };
     });
-    // Always show the large Take button for tablet / kiosk use
-    box.classList.remove("one-tap");
     const tb = $("#btnTake");
     if (tb) {
+      // Collect button still available as secondary confirm / reprint path
       tb.hidden = false;
-      tb.textContent = list.length > 1 ? "Take a ticket" : "Take a ticket";
+      tb.textContent = "Collect Ticket";
     }
-    setText("heroHint", list.length > 1 ? "Choose a service, then press the big button." : "Press the button to take your number.");
+    setText("heroHint", "Please tap your desired service below to generate your paper or mobile ticket");
   }
 
   function renderCashierSelect() {
@@ -1278,6 +1289,8 @@
   function tickClock() {
     const t = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     $$(".clock").forEach((e) => (e.textContent = t));
+    const kc = document.getElementById("kioskClock");
+    if (kc) kc.textContent = t;
   }
   tickClock();
   setInterval(tickClock, 15000);
