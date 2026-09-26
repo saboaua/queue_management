@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Queue Management</title>
-  <link rel="stylesheet" href="/queue_management/static/style.css?v=241" />
+  <link rel="stylesheet" href="/queue_management/static/style.css?v=242" />
 </head>
 <body>
   <div id="app">
@@ -33,12 +33,29 @@
       <!-- RECEPTION / KIOSK -->
       <section id="mode-reception" class="mode-panel active">
         <div class="rx-shell">
-          <div class="rx-header">
-            <div>
-              <div class="rx-badge">Self-service express kiosk</div>
-              <h1 class="rx-title">Welcome</h1>
-              <p class="rx-sub" id="heroHint">Please tap a service category below to receive your printed ticket immediately.</p>
+          <header class="rx-topbar">
+            <div class="rx-brand">
+              <span class="rx-brand-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9a2 2 0 0 0 0 6v3h18v-3a2 2 0 0 1 0-6V6H3z"/><path d="M14 7v10" stroke-dasharray="2 3"/></svg>
+              </span>
+              <div class="rx-brand-text">
+                <div class="rx-brand-row">
+                  <strong class="rx-brand-name">TicketLog</strong>
+                  <span class="rx-loc-pill" id="kioskLocName">Lobby</span>
+                </div>
+                <span class="rx-brand-sub">Main reception &amp; concierge services</span>
+              </div>
             </div>
+            <div class="rx-top-right">
+              <span class="rx-term">Terminal · Online</span>
+              <span class="kiosk-clock" id="kioskClock">—</span>
+            </div>
+          </header>
+
+          <div class="rx-header">
+            <div class="rx-badge">Self-service express kiosk</div>
+            <h1 class="rx-title">Welcome</h1>
+            <p class="rx-sub" id="heroHint">Please tap a service category below to receive your visitor badge or queue ticket immediately.</p>
           </div>
 
           <div class="rx-body">
@@ -49,22 +66,33 @@
             <aside class="rx-side">
               <div class="rx-ticket-panel">
                 <div class="rx-ticket-head">
-                  <span class="rx-ticket-label">Thermal ticket</span>
+                  <span class="rx-ticket-label">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 20h10"/></svg>
+                    Thermal Ticket Preview
+                  </span>
                   <span class="rx-ready"><span class="kiosk-dot"></span> Ready</span>
                 </div>
                 <div class="ticket-result rx-ticket-card" id="ticketResult">
                   <div class="rx-ticket-meta">
-                    <span id="kioskLocName">Queue</span>
-                    <span class="kiosk-clock" id="kioskClock">—</span>
+                    <span class="rx-pass-label">Queue pass</span>
+                    <span class="rx-pass-time" id="ticketPassTime">—</span>
                   </div>
                   <div class="label">Your number</div>
                   <div class="number" id="ticketNumber">—</div>
-                  <div class="rx-ticket-svc" id="ticketSvcName"></div>
-                  <div class="eta" id="ticketEta"></div>
-                  <div class="hint">Tap a service to get your ticket</div>
+                  <div class="rx-ticket-svc" id="ticketSvcName">Tap a service to get your ticket</div>
+                  <div class="rx-ticket-desk" id="ticketDeskHint"></div>
+                  <div class="rx-ticket-wait-row">
+                    <span>Estimated wait</span>
+                    <strong class="eta" id="ticketEta">—</strong>
+                  </div>
+                  <div class="rx-barcode" aria-hidden="true">
+                    <div class="rx-barcode-bars"></div>
+                    <span class="rx-barcode-code" id="ticketBarcode">—</span>
+                  </div>
+                  <p class="hint" id="ticketHint">Please present this pass when your number is called.</p>
                 </div>
-                <button id="btnTake" class="btn-collect" type="button" aria-label="Collect ticket">
-                  Collect Ticket
+                <button id="btnTake" class="btn-collect" type="button" aria-label="Collect printed ticket">
+                  ↓ Collect Printed Ticket
                 </button>
               </div>
             </aside>
@@ -74,22 +102,22 @@
             <div class="rx-kpi">
               <div class="rx-kpi-icon">👥</div>
               <div>
-                <div class="rx-kpi-val"><strong id="rWaiting">0</strong> customers</div>
-                <div class="rx-kpi-lbl">Currently waiting</div>
+                <div class="rx-kpi-val"><strong id="rWaiting">0</strong> guests</div>
+                <div class="rx-kpi-lbl">Currently waiting in lobby</div>
               </div>
             </div>
             <div class="rx-kpi">
               <div class="rx-kpi-icon">⏱</div>
               <div>
-                <div class="rx-kpi-val"><strong id="rEta">—</strong></div>
-                <div class="rx-kpi-lbl">Est. wait</div>
+                <div class="rx-kpi-val">~<strong id="rEta">—</strong></div>
+                <div class="rx-kpi-lbl">Lobby average wait time</div>
               </div>
             </div>
             <div class="rx-kpi">
               <div class="rx-kpi-icon">📣</div>
               <div>
                 <div class="rx-kpi-val"><strong id="rCurrent">—</strong></div>
-                <div class="rx-kpi-lbl">Now serving</div>
+                <div class="rx-kpi-lbl">Now actively being assisted</div>
               </div>
             </div>
           </footer>
@@ -417,6 +445,6 @@
     </div>
     <div id="toast" class="toast" hidden></div>
   </div>
-  <script src="/queue_management/static/app.js?v=241"></script>
+  <script src="/queue_management/static/app.js?v=242"></script>
 </body>
 </html>

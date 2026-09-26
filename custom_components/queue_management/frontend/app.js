@@ -286,11 +286,18 @@
 
   function serviceMeta(s) {
     const qq = (state.queues || []).find((x) => x.queue_id === s.queue_id);
-    if (!qq) return { wait: "No wait", ahead: "" };
-    if (!qq.waiting_count) return { wait: "No wait", ahead: "Available now" };
+    if (!qq) return { wait: "No wait", ahead: "Available now", instant: true };
+    if (!qq.waiting_count) return { wait: "No wait", ahead: "Available now", instant: true };
     const wait = qq.eta && qq.eta !== "—" ? `~${qq.eta} wait` : `${qq.waiting_count} waiting`;
-    const ahead = qq.waiting_count === 1 ? "1 ahead" : `${qq.waiting_count} ahead`;
-    return { wait, ahead };
+    const ahead = qq.waiting_count === 1 ? "1 person ahead" : `${qq.waiting_count} ahead`;
+    return { wait, ahead, instant: false };
+  }
+
+  function serviceLineBadge(s, index) {
+    if (s.line_label) return s.line_label;
+    if (s.priority) return `Priority ${s.priority}`;
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    return `Line ${letters[index % letters.length]}`;
   }
 
   function renderServiceButtons() {
@@ -304,21 +311,26 @@
     if (!selectedServiceId || !list.find((s) => s.id === selectedServiceId)) {
       selectedServiceId = list[0].id;
     }
-    // Horizontal list rows (QueueFlow-style)
+    // TicketLog-style service rows
     box.innerHTML = list
-      .map((s) => {
+      .map((s, i) => {
         const meta = serviceMeta(s);
         const active = s.id === selectedServiceId ? "active" : "";
         const icon = s.icon || "🎫";
         const desc = (s.description || "").trim();
+        const line = serviceLineBadge(s, i);
+        const waitClass = meta.instant ? "is-ready" : "";
         return `<button type="button" class="rx-row ${active}" data-service="${s.id}">
           <span class="rx-row-icon">${icon}</span>
           <span class="rx-row-main">
-            <span class="rx-row-name">${s.name}</span>
-            ${desc ? `<span class="rx-row-desc">${desc}</span>` : ""}
+            <span class="rx-row-title">
+              <span class="rx-line-badge">${line}</span>
+              <span class="rx-row-name">${s.name}</span>
+            </span>
+            ${desc ? `<span class="rx-row-desc">${desc}</span>` : `<span class="rx-row-desc">Tap to take a ticket for this service</span>`}
           </span>
-          <span class="rx-row-wait">
-            <span class="rx-wait-time">${meta.wait}</span>
+          <span class="rx-row-wait ${waitClass}">
+            <span class="rx-wait-time"><span class="rx-wait-dot"></span>${meta.wait}</span>
             <span class="rx-wait-ahead">${meta.ahead}</span>
           </span>
         </button>`;
@@ -330,8 +342,8 @@
         localStorage.setItem("qm_service", selectedServiceId);
         const svc = list.find((s) => s.id === selectedServiceId);
         if (svc?.queue_id) currentQueueId = svc.queue_id;
-        const svcNameEl = document.getElementById("ticketSvcName");
-        if (svcNameEl) svcNameEl.textContent = svc?.name || "";
+        setText("ticketSvcName", svc?.name || "");
+        setText("ticketDeskHint", "Proceed when called");
         renderServiceButtons();
         render();
         takeTicket(); // one-tap issue
@@ -990,17 +1002,30 @@
       if (selectedServiceId) extra.service_id = selectedServiceId;
       const res = await doAction("take_ticket", extra);
       if (res?.result) {
-        setText("ticketNumber", res.result.ticket_display);
-        setText("ticketEta", res.result.eta && res.result.eta !== "—" ? `Est. wait: ${res.result.eta}` : "");
+        const disp = res.result.ticket_display || "—";
+        setText("ticketNumber", disp);
+        const etaVal =
+          res.result.eta && res.result.eta !== "—"
+            ? res.result.eta
+            : res.result.waiting_count
+              ? `${res.result.waiting_count} ahead`
+              : "Immediate";
+        setText("ticketEta", etaVal);
         const svc = (state.services || []).find((s) => s.id === selectedServiceId);
         setText("ticketSvcName", svc?.name || "");
+        setText("ticketDeskHint", "Proceed when your number is called");
+        setText("ticketBarcode", `SCAN-${String(disp).replace(/[^A-Za-z0-9]/g, "")}`);
+        setText(
+          "ticketPassTime",
+          new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        );
         const box = $("#ticketResult");
         if (box) {
           box.hidden = false;
           box.classList.add("issued");
         }
         playCallSound((state.security && state.security.new_ticket_sound) || "beep");
-        toast(`Ticket ${res.result.ticket_display} issued`);
+        toast(`Ticket ${disp} issued`);
       }
     } catch (e) {
       toast(e.message, true);
