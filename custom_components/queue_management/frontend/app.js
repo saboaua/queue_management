@@ -293,11 +293,11 @@
     return { wait, ahead, instant: false };
   }
 
-  function serviceLineBadge(s, index) {
-    if (s.line_label) return s.line_label;
-    if (s.priority) return `Priority ${s.priority}`;
+  function serviceQueueLetter(s, index) {
+    if (s.prefix) return String(s.prefix).charAt(0).toUpperCase();
+    if (s.line_label) return String(s.line_label).replace(/[^A-Za-z]/g, "").charAt(0).toUpperCase() || "Q";
     const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    return `Line ${letters[index % letters.length]}`;
+    return letters[index % letters.length];
   }
 
   function renderServiceButtons() {
@@ -311,27 +311,23 @@
     if (!selectedServiceId || !list.find((s) => s.id === selectedServiceId)) {
       selectedServiceId = list[0].id;
     }
-    // TicketLog-style service rows
+    // QueueBee-style gradient service pills
     box.innerHTML = list
       .map((s, i) => {
-        const meta = serviceMeta(s);
-        const active = s.id === selectedServiceId ? "active" : "";
         const icon = s.icon || "🎫";
-        const desc = (s.description || "").trim();
-        const line = serviceLineBadge(s, i);
-        const waitClass = meta.instant ? "is-ready" : "";
-        return `<button type="button" class="rx-row ${active}" data-service="${s.id}">
-          <span class="rx-row-icon">${icon}</span>
-          <span class="rx-row-main">
-            <span class="rx-row-title">
-              <span class="rx-line-badge">${line}</span>
-              <span class="rx-row-name">${s.name}</span>
-            </span>
-            ${desc ? `<span class="rx-row-desc">${desc}</span>` : `<span class="rx-row-desc">Tap to take a ticket for this service</span>`}
+        const desc = (s.description || "").trim() || "Tap to take a ticket";
+        const letter = serviceQueueLetter(s, i);
+        const active = s.id === selectedServiceId ? "active" : "";
+        return `<button type="button" class="rx-pill ${active}" data-service="${s.id}">
+          <span class="rx-pill-icon">${icon}</span>
+          <span class="rx-pill-main">
+            <span class="rx-pill-name">${s.name}</span>
+            <span class="rx-pill-desc">${desc}</span>
           </span>
-          <span class="rx-row-wait ${waitClass}">
-            <span class="rx-wait-time"><span class="rx-wait-dot"></span>${meta.wait}</span>
-            <span class="rx-wait-ahead">${meta.ahead}</span>
+          <span class="rx-pill-queue">
+            <span class="rx-pill-queue-label">Queue</span>
+            <span class="rx-pill-queue-letter">${letter}</span>
+            <span class="rx-pill-chevron" aria-hidden="true">›</span>
           </span>
         </button>`;
       })
@@ -343,18 +339,11 @@
         const svc = list.find((s) => s.id === selectedServiceId);
         if (svc?.queue_id) currentQueueId = svc.queue_id;
         setText("ticketSvcName", svc?.name || "");
-        setText("ticketDeskHint", "Proceed when called");
         renderServiceButtons();
         render();
-        takeTicket(); // one-tap issue
+        takeTicket();
       };
     });
-    const tb = $("#btnTake");
-    if (tb) {
-      tb.hidden = false;
-      tb.textContent = "Collect Ticket";
-    }
-    setText("heroHint", "Please tap a service category below to receive your printed ticket immediately.");
   }
 
   function renderCashierSelect() {
@@ -1043,7 +1032,12 @@
         const box = $("#ticketResult");
         if (box) {
           box.hidden = false;
-          box.classList.add("issued");
+          box.classList.add("issued", "show");
+          clearTimeout(window._rxTicketHide);
+          window._rxTicketHide = setTimeout(() => {
+            box.classList.remove("show");
+            setTimeout(() => { box.hidden = true; }, 300);
+          }, 8000);
         }
         playCallSound((state.security && state.security.new_ticket_sound) || "beep");
         toast(`Ticket ${disp} issued`);

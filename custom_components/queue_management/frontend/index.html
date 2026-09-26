@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Queue Management</title>
-  <link rel="stylesheet" href="/queue_management/static/style.css?v=243" />
+  <link rel="stylesheet" href="/queue_management/static/style.css?v=244" />
 </head>
 <body>
   <div id="app">
@@ -33,92 +33,55 @@
       <!-- RECEPTION / KIOSK -->
       <section id="mode-reception" class="mode-panel active">
         <div class="rx-shell">
-          <header class="rx-topbar">
-            <div class="rx-brand">
-              <span class="rx-brand-mark" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9a2 2 0 0 0 0 6v3h18v-3a2 2 0 0 1 0-6V6H3z"/><path d="M14 7v10" stroke-dasharray="2 3"/></svg>
-              </span>
-              <div class="rx-brand-text">
-                <div class="rx-brand-row">
-                  <strong class="rx-brand-name">TicketLog</strong>
-                  <span class="rx-loc-pill" id="kioskLocName">Lobby</span>
-                </div>
-                <span class="rx-brand-sub">Main reception &amp; concierge services</span>
-              </div>
+          <header class="rx-status">
+            <div class="rx-status-left">
+              <span class="rx-online"><span class="rx-online-dot"></span> Terminal · Online &amp; Ready</span>
             </div>
-            <div class="rx-top-right">
-              <span class="rx-term">Terminal · Online</span>
+            <div class="rx-status-right">
               <span class="kiosk-clock" id="kioskClock">—</span>
             </div>
           </header>
 
-          <div class="rx-header">
-            <div class="rx-badge">Self-service express kiosk</div>
-            <h1 class="rx-title">Welcome</h1>
-            <p class="rx-sub" id="heroHint">Please tap a service category below to receive your visitor badge or queue ticket immediately.</p>
+          <div class="rx-hero">
+            <div class="rx-logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9a2 2 0 0 0 0 6v3h18v-3a2 2 0 0 1 0-6V6H3z"/><path d="M14 7v10" stroke-dasharray="2 3"/></svg>
+            </div>
+            <div class="rx-brand-name" id="kioskLocName">Queue Management</div>
+            <h1 class="rx-title">Please take your queue ticket</h1>
+            <p class="rx-sub" id="heroHint">Select your intended service below to receive an automated ticket &amp; room assignment</p>
           </div>
 
-          <div class="rx-body">
-            <div class="rx-services">
-              <div id="serviceButtons" class="rx-service-list"></div>
-            </div>
-
-            <aside class="rx-side">
-              <div class="rx-ticket-panel">
-                <div class="rx-ticket-head">
-                  <span class="rx-ticket-label">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 20h10"/></svg>
-                    Thermal Ticket Preview
-                  </span>
-                  <span class="rx-ready"><span class="kiosk-dot"></span> Ready</span>
-                </div>
-                <div class="ticket-result rx-ticket-card" id="ticketResult">
-                  <div class="rx-ticket-meta">
-                    <span class="rx-pass-label">Queue pass</span>
-                    <span class="rx-pass-time" id="ticketPassTime">—</span>
-                  </div>
-                  <div class="label">Your number</div>
-                  <div class="number" id="ticketNumber">—</div>
-                  <div class="rx-ticket-svc" id="ticketSvcName">Tap a service to get your ticket</div>
-                  <div class="rx-ticket-desk" id="ticketDeskHint"></div>
-                  <div class="rx-ticket-wait-row">
-                    <span>Estimated wait</span>
-                    <strong class="eta" id="ticketEta">—</strong>
-                  </div>
-                  <div class="rx-barcode" aria-hidden="true">
-                    <div class="rx-barcode-bars"></div>
-                    <span class="rx-barcode-code" id="ticketBarcode">—</span>
-                  </div>
-                  <p class="hint" id="ticketHint">Please present this pass when your number is called.</p>
-                </div>
-                <button id="btnTake" class="btn-collect" type="button" aria-label="Collect printed ticket">
-                  ↓ Collect Printed Ticket
-                </button>
-              </div>
-            </aside>
+          <div class="rx-services">
+            <div id="serviceButtons" class="rx-pill-list"></div>
           </div>
 
-          <footer class="rx-foot">
-            <div class="rx-kpi">
-              <div class="rx-kpi-icon">👥</div>
-              <div>
-                <div class="rx-kpi-val"><strong id="rWaiting">0</strong> guests</div>
-                <div class="rx-kpi-lbl">Currently waiting in lobby</div>
+          <div class="rx-ticket-toast" id="ticketResult" hidden>
+            <div class="rx-toast-inner">
+              <div class="rx-toast-label">Your number</div>
+              <div class="rx-toast-number" id="ticketNumber">—</div>
+              <div class="rx-toast-svc" id="ticketSvcName"></div>
+              <div class="rx-toast-meta">
+                <span id="ticketEta">—</span>
+                <span id="ticketPassTime"></span>
               </div>
+              <button id="btnTake" class="rx-toast-btn" type="button">Collect ticket</button>
             </div>
-            <div class="rx-kpi">
-              <div class="rx-kpi-icon">⏱</div>
-              <div>
-                <div class="rx-kpi-val">~<strong id="rEta">—</strong></div>
-                <div class="rx-kpi-lbl">Lobby average wait time</div>
-              </div>
+          </div>
+          <!-- kept for JS compatibility -->
+          <span id="ticketBarcode" hidden></span>
+          <span id="ticketDeskHint" hidden></span>
+          <span id="ticketHint" hidden></span>
+
+          <footer class="rx-bottom">
+            <div class="rx-bottom-stats">
+              <span><strong id="rWaiting">0</strong> waiting</span>
+              <span class="rx-sep">·</span>
+              <span>Avg <strong id="rEta">—</strong></span>
+              <span class="rx-sep">·</span>
+              <span>Now <strong id="rCurrent">—</strong></span>
             </div>
-            <div class="rx-kpi">
-              <div class="rx-kpi-icon">📣</div>
-              <div>
-                <div class="rx-kpi-val"><strong id="rCurrent">—</strong></div>
-                <div class="rx-kpi-lbl">Now actively being assisted</div>
-              </div>
+            <div class="rx-bottom-ready">
+              <span class="rx-online-dot"></span> Thermal printer ready
             </div>
           </footer>
         </div>
@@ -445,6 +408,6 @@
     </div>
     <div id="toast" class="toast" hidden></div>
   </div>
-  <script src="/queue_management/static/app.js?v=243"></script>
+  <script src="/queue_management/static/app.js?v=244"></script>
 </body>
 </html>
