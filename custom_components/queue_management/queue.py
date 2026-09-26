@@ -70,6 +70,17 @@ DEFAULT_PRINT_TEMPLATE = {
     "social_line": "",
 }
 
+# Weekday keys: mon=0 … sun=6 (Python datetime.weekday())
+BREAK_DAY_KEYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+DEFAULT_BREAK = {
+    "enabled": False,
+    "start": "12:00",  # local HH:MM
+    "end": "13:00",
+    "message": "We are currently on a break. Ticket issuance will resume shortly.",
+    # Default: every day; Admin can limit to e.g. Mon–Fri only
+    "days": list(BREAK_DAY_KEYS),
+}
+
 DEFAULT_ANNOUNCE_TEMPLATES = {
     "with_cashier": "Ticket {ticket}, please go to {cashier}",
     "without_cashier": "Ticket {ticket}, please proceed",
@@ -226,6 +237,7 @@ class QueueManager:
         self.call_sound: str = DEFAULT_CALL_SOUND
         self.new_ticket_sound: str = "beep"
         self.ui_logo_url: str = ""
+        self.break_settings: dict[str, Any] = dict(DEFAULT_BREAK)
         self._loaded = False
 
     async def async_load(self) -> None:
@@ -268,6 +280,7 @@ class QueueManager:
             self.call_sound = str(data.get("call_sound") or DEFAULT_CALL_SOUND)
             self.new_ticket_sound = str(data.get("new_ticket_sound") or "beep")
             self.ui_logo_url = str(data.get("ui_logo_url") or "")
+            self.break_settings = {**DEFAULT_BREAK, **(data.get("break_settings") or {})}
         else:
             self.queues[DEFAULT_QUEUE_ID] = Queue(
                 queue_id=DEFAULT_QUEUE_ID, name=DEFAULT_QUEUE_NAME
@@ -309,6 +322,7 @@ class QueueManager:
             "call_sound": self.call_sound,
             "new_ticket_sound": self.new_ticket_sound,
             "ui_logo_url": self.ui_logo_url,
+            "break_settings": self.break_settings,
         }
         await self._store.async_save(data)
 
@@ -521,6 +535,13 @@ class QueueManager:
     async def async_take_ticket(
         self, queue_id: str | None = None, service_id: str | None = None
     ) -> dict[str, Any]:
+        br = self.get_break_status()
+        if br.get("active"):
+            raise ValueError(
+                br.get("message")
+                or f"On break from {br.get('start_display')} to {br.get('end_display')}"
+            )
+
         if service_id:
             svc = self.services.get(service_id)
             if not svc or not svc.enabled:
@@ -905,6 +926,115 @@ class QueueManager:
         except ValueError:
             return False
         return (r * 299 + g * 587 + b * 114) / 1000 < 80
+
+
+    def get_break_status(self) -> dict[str, Any]:
+        """Return whether ticket issuance is blocked by a scheduled break (local time + weekdays)."""
+        cfg = {**DEFAULT_BREAK, **(self.break_settings or {})}
+        enabled = bool(cfg.get("enabled"))
+        start_s = str(cfg.get("start") or "12:00").strip()
+        end_s = str(cfg.get("end") or "13:00").strip()
+        message = str(
+            cfg.get("message")
+            or "We are currently on a break. Ticket issuance will resume shortly."
+        )
+        raw_days = cfg.get("days")
+        if not isinstance(raw_days, list) or not raw_days:
+            days = list(BREAK_DAY_KEYS)
+        else:
+            days = []
+            for d in raw_days:
+                key = str(d).strip().lower()[:3]
+                if key in BREAK_DAY_KEYS and key not in days:
+                    days.append(key)
+
+        def _parse_hhmm(value: str) -> tuple[int, int] | None:
+            parts = value.replace(".", ":").split(":")
+            if len(parts) < 2:
+                return None
+            try:
+                h, m = int(parts[0]), int(parts[1])
+            except ValueError:
+                return None
+            if not (0 <= h <= 23 and 0 <= m <= 59):
+                return None
+            return h, m
+
+        start_t = _parse_hhmm(start_s)
+        end_t = _parse_hhmm(end_s)
+        now = datetime.now().astimezone()
+        now_mins = now.hour * 60 + now.minute
+        today_key = BREAK_DAY_KEYS[now.weekday()]  # mon=0 … sun=6
+        yesterday_key = BREAK_DAY_KEYS[(now.weekday() - 1) % 7]
+
+        active = False
+        if enabled and start_t and end_t and days:
+            start_mins = start_t[0] * 60 + start_t[1]
+            end_mins = end_t[0] * 60 + end_t[1]
+            if start_mins == end_mins:
+                active = False
+            elif start_mins < end_mins:
+                # same-day window e.g. 12:00–13:00 on selected weekdays
+                active = (
+                    today_key in days and start_mins <= now_mins < end_mins
+                )
+            else:
+                # overnight e.g. Fri 22:00 – Sat 06:00: belongs to the start weekday
+                if now_mins >= start_mins:
+                    active = today_key in days
+                elif now_mins < end_mins:
+                    active = yesterday_key in days
+                else:
+                    active = False
+
+        def _fmt(hm: tuple[int, int] | None, fallback: str) -> str:
+            if not hm:
+                return fallback
+            return f"{hm[0]:02d}:{hm[1]:02d}"
+
+        start_disp = _fmt(start_t, start_s)
+        end_disp = _fmt(end_t, end_s)
+        day_labels = {
+            "mon": "Mon",
+            "tue": "Tue",
+            "wed": "Wed",
+            "thu": "Thu",
+            "fri": "Fri",
+            "sat": "Sat",
+            "sun": "Sun",
+        }
+        days_label = ", ".join(day_labels[d] for d in BREAK_DAY_KEYS if d in days)
+        return {
+            "enabled": enabled,
+            "active": active,
+            "start": start_s,
+            "end": end_s,
+            "start_display": start_disp,
+            "end_display": end_disp,
+            "message": message,
+            "days": days,
+            "days_label": days_label,
+            "label": f"On a break from {start_disp} to {end_disp}",
+        }
+
+    async def async_save_break(self, data: dict[str, Any]) -> None:
+        cleaned = dict(DEFAULT_BREAK)
+        cleaned["days"] = list(BREAK_DAY_KEYS)
+        if "enabled" in data:
+            cleaned["enabled"] = bool(data["enabled"])
+        for key in ("start", "end", "message"):
+            if key in data and data[key] is not None:
+                cleaned[key] = str(data[key]).strip()
+        if "days" in data and isinstance(data["days"], list):
+            days: list[str] = []
+            for d in data["days"]:
+                key = str(d).strip().lower()[:3]
+                if key in BREAK_DAY_KEYS and key not in days:
+                    days.append(key)
+            cleaned["days"] = days if days else list(BREAK_DAY_KEYS)
+        self.break_settings = cleaned
+        await self.async_save()
+        self._notify()
 
     async def async_save_theme(self, theme: dict[str, Any]) -> None:
         cleaned = dict(DEFAULT_THEME)

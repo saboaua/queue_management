@@ -90,6 +90,8 @@ def _state_payload(hass: HomeAssistant, manager: QueueManager) -> dict[str, Any]
             "new_ticket_sound": manager.new_ticket_sound,
             "ui_logo_url": manager.ui_logo_url,
         },
+        "break": manager.get_break_status(),
+        "break_settings": {**manager.break_settings},
     }
 
 
@@ -159,6 +161,10 @@ async def _handle_action(
         if action == "save_security":
             await manager.async_save_security(data)
             return web.json_response({"ok": True})
+
+        if action == "save_break":
+            await manager.async_save_break(data.get("break_settings") or data)
+            return web.json_response({"ok": True, "break": manager.get_break_status()})
 
         if action == "verify_pin":
             ok = manager.verify_pin(data.get("pin"))

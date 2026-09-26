@@ -334,6 +334,10 @@
       .join("");
     box.querySelectorAll("[data-service]").forEach((btn) => {
       btn.onclick = () => {
+        if (state.break && state.break.active) {
+          toast(state.break.message || "On a break — tickets unavailable", true);
+          return;
+        }
         selectedServiceId = btn.getAttribute("data-service");
         localStorage.setItem("qm_service", selectedServiceId);
         const svc = list.find((s) => s.id === selectedServiceId);
@@ -474,6 +478,77 @@
     set("pt_show_eta", t.show_eta !== false, true);
     set("pt_show_qr", t.show_qr !== false, true);
     updatePrintPreview();
+  }
+
+
+  let breakDirty = false;
+  function fillBreakForm() {
+    if (breakDirty) return;
+    const b = state.break_settings || state.break || {};
+    const set = (id, val, isCheck) => {
+      const el = document.getElementById(id);
+      if (!el || document.activeElement === el) return;
+      if (isCheck) el.checked = !!val;
+      else el.value = val ?? "";
+    };
+    set("breakEnabled", b.enabled, true);
+    // time inputs want HH:MM
+    const norm = (t) => {
+      if (!t) return "";
+      const p = String(t).replace(".", ":").split(":");
+      if (p.length < 2) return "";
+      return `${String(p[0]).padStart(2, "0")}:${String(p[1]).padStart(2, "0")}`;
+    };
+    set("breakStart", norm(b.start || "12:00"));
+    set("breakEnd", norm(b.end || "13:00"));
+    set("breakMessage", b.message || "");
+    const days = Array.isArray(b.days) && b.days.length
+      ? b.days.map((d) => String(d).slice(0, 3).toLowerCase())
+      : ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+    document.querySelectorAll("#breakDays input[data-day]").forEach((el) => {
+      if (document.activeElement === el) return;
+      el.checked = days.includes(el.getAttribute("data-day"));
+    });
+    const st = state.break || {};
+    const prev = document.getElementById("breakStatusPreview");
+    if (prev) {
+      const dayPart = st.days_label ? ` · ${st.days_label}` : "";
+      if (st.enabled && st.active) prev.textContent = `Status now: ON BREAK (${st.start_display} – ${st.end_display})${dayPart}`;
+      else if (st.enabled) prev.textContent = `Status now: open (window ${st.start_display} – ${st.end_display})${dayPart}`;
+      else prev.textContent = "Status now: break schedule disabled";
+    }
+  }
+
+  function selectedBreakDays() {
+    return Array.from(document.querySelectorAll("#breakDays input[data-day]:checked")).map((el) =>
+      el.getAttribute("data-day")
+    );
+  }
+
+  function setBreakDays(list) {
+    const set = new Set(list);
+    document.querySelectorAll("#breakDays input[data-day]").forEach((el) => {
+      el.checked = set.has(el.getAttribute("data-day"));
+    });
+    breakDirty = true;
+  }
+
+  function updateReceptionBreak() {
+    const st = state.break || {};
+    const overlay = document.getElementById("rxBreakOverlay");
+    const list = document.getElementById("serviceButtons");
+    if (!overlay) return;
+    if (st.active) {
+      overlay.hidden = false;
+      setText("rxBreakRange", `from ${st.start_display || "—"} to ${st.end_display || "—"}`);
+      setText("rxBreakMessage", st.message || "Ticket issuance is paused.");
+      if (list) list.setAttribute("aria-disabled", "true");
+      document.getElementById("mode-reception")?.classList.add("on-break");
+    } else {
+      overlay.hidden = true;
+      if (list) list.removeAttribute("aria-disabled");
+      document.getElementById("mode-reception")?.classList.remove("on-break");
+    }
   }
 
   function fillSecurityForm() {
@@ -1266,6 +1341,39 @@
     } catch (e) {
       toast(e.message, true);
     }
+  });
+
+  $("#btnSaveBreak")?.addEventListener("click", async () => {
+    try {
+      const days = selectedBreakDays();
+      if (!days.length) return toast("Select at least one weekday", true);
+      await doAction("save_break", {
+        break_settings: {
+          enabled: !!$("#breakEnabled")?.checked,
+          start: ($("#breakStart")?.value || "12:00").trim(),
+          end: ($("#breakEnd")?.value || "13:00").trim(),
+          message: ($("#breakMessage")?.value || "").trim(),
+          days,
+        },
+      });
+      breakDirty = false;
+      toast("Break hours saved");
+    } catch (e) {
+      toast(e.message, true);
+    }
+  });
+
+  $("#breakDaysWeekdays")?.addEventListener("click", () =>
+    setBreakDays(["mon", "tue", "wed", "thu", "fri"])
+  );
+  $("#breakDaysAll")?.addEventListener("click", () =>
+    setBreakDays(["mon", "tue", "wed", "thu", "fri", "sat", "sun"])
+  );
+  $("#breakDaysClear")?.addEventListener("click", () => setBreakDays([]));
+
+  document.querySelectorAll("[data-break]").forEach((el) => {
+    el.addEventListener("input", () => { breakDirty = true; });
+    el.addEventListener("change", () => { breakDirty = true; });
   });
 
   $("#btnSaveSecurity")?.addEventListener("click", async () => {
