@@ -53,6 +53,7 @@ _LEGACY_THEME_BG = {
     "#f3f4f6",
 }
 
+# Thermal ticket layout (bank / kiosk style — large number is the focus)
 DEFAULT_PRINT_TEMPLATE = {
     "title": "QUEUE TICKET",
     "show_number": True,
@@ -60,9 +61,10 @@ DEFAULT_PRINT_TEMPLATE = {
     "show_datetime": True,
     "show_waiting_count": True,
     "show_eta": True,
-    "header": "Please wait for your number",
-    "footer": "Thank you for your patience",
-    "extra_line": "",
+    "show_qr": True,
+    "header": "Welcome",
+    "footer": "Please wait to be served",
+    "extra_line": "Thank you for your patience",
     "paper_width": "58mm",
     "logo_url": "",
     "social_line": "",
@@ -956,48 +958,136 @@ class QueueManager:
         return str(pin or "") == self.admin_pin
 
     def build_print_payload(self, event: dict[str, Any]) -> dict[str, Any]:
+        """Build bank-style thermal ticket content.
+
+        Layout (top → bottom), matching common kiosk tickets:
+          header / brand title / branch (queue)
+          service type
+          ★ LARGE ticket number ★
+          date/time · waiting · ETA
+          footer / extra / social
+          optional QR code line
+        """
         tpl = self.print_template
         lines: list[str] = []
+        blocks: list[dict[str, Any]] = []
+
+        def add_line(text: str, *, style: str = "normal", align: str = "center") -> None:
+            text = str(text).strip()
+            if not text:
+                return
+            lines.append(text)
+            blocks.append({"type": "text", "align": align, "style": style, "value": text})
+
+        def add_blank() -> None:
+            lines.append("")
+            blocks.append({"type": "blank"})
+
+        ticket = str(event.get("ticket_display") or "").strip()
+        service = str(event.get("service_name") or "").strip()
+        queue_name = str(event.get("queue_name") or "").strip()
+
+        # --- Header / brand ---
         if tpl.get("logo_url"):
             lines.append(f"[LOGO] {tpl['logo_url']}")
-        if tpl.get("title"):
-            lines.append(str(tpl["title"]))
-        if tpl.get("header"):
-            lines.append(str(tpl["header"]))
-        if tpl.get("show_queue_name") and event.get("queue_name"):
-            lines.append(f"Queue: {event['queue_name']}")
-        if event.get("service_name"):
-            lines.append(f"Service: {event['service_name']}")
-        if tpl.get("show_number") and event.get("ticket_display"):
-            lines.append(f"Number: {event['ticket_display']}")
-        if tpl.get("show_waiting_count") and "waiting_count" in event:
-            lines.append(
-                f"Waiting ahead: {max(0, int(event['waiting_count']) - 1)}"
+            blocks.append(
+                {
+                    "type": "logo",
+                    "align": "center",
+                    "value": tpl["logo_url"],
+                }
             )
-        if tpl.get("show_eta") and event.get("eta") and event.get("eta") != "—":
-            lines.append(f"Est. wait: {event['eta']}")
+        if tpl.get("header"):
+            add_line(tpl["header"], style="small")
+        if tpl.get("title"):
+            add_line(tpl["title"], style="bold")
+        if tpl.get("show_queue_name") and queue_name:
+            add_line(queue_name, style="normal")
+
+        # --- Service ---
+        if service:
+            add_blank()
+            add_line("Service Type", style="small")
+            add_line(service, style="normal")
+
+        # --- LARGE ticket number (main focus) ---
+        if tpl.get("show_number") and ticket:
+            add_blank()
+            add_line("Your number", style="small")
+            # Plain-text lines: blank padding + number alone so ESC/POS can enlarge
+            lines.append("")
+            lines.append(ticket)
+            lines.append("")
+            blocks.append(
+                {
+                    "type": "number",
+                    "align": "center",
+                    "style": "double",
+                    "value": ticket,
+                }
+            )
+            add_blank()
+
+        # --- Meta: datetime, waiting, ETA ---
         if tpl.get("show_datetime"):
             ts = event.get("timestamp")
+            dt_str = ""
             if ts:
                 try:
-                    dt = datetime.fromisoformat(ts)
-                    lines.append(dt.astimezone().strftime("%Y-%m-%d %H:%M"))
+                    dt = datetime.fromisoformat(str(ts))
+                    dt_str = dt.astimezone().strftime("%Y-%m-%d %H:%M")
                 except Exception:
-                    lines.append(str(ts))
-        if tpl.get("extra_line"):
-            lines.append(str(tpl["extra_line"]))
+                    dt_str = str(ts)
+            if dt_str:
+                add_line(dt_str, style="small")
+
+        if tpl.get("show_waiting_count") and "waiting_count" in event:
+            try:
+                ahead = max(0, int(event["waiting_count"]) - 1)
+            except (TypeError, ValueError):
+                ahead = 0
+            add_line(f"Waiting ahead: {ahead}", style="small")
+
+        if tpl.get("show_eta") and event.get("eta") and event.get("eta") != "—":
+            add_line(f"Est. wait: {event['eta']}", style="small")
+
+        # --- Footer ---
+        add_blank()
         if tpl.get("footer"):
-            lines.append(str(tpl["footer"]))
+            add_line(tpl["footer"], style="normal")
+        if tpl.get("extra_line"):
+            add_line(tpl["extra_line"], style="small")
         if tpl.get("social_line"):
-            lines.append(str(tpl["social_line"]))
+            add_line(tpl["social_line"], style="small")
+
+        # --- QR (printers/automations that support it) ---
+        qr_value = ""
+        if tpl.get("show_qr") and ticket:
+            qr_value = (
+                f"queue:{event.get('queue_id') or 'main'}:"
+                f"{ticket}:{event.get('service_id') or ''}"
+            )
+            lines.append(f"[QR] {qr_value}")
+            blocks.append(
+                {
+                    "type": "qr",
+                    "align": "center",
+                    "value": qr_value,
+                }
+            )
+
         return {
             "lines": lines,
-            "ticket_display": event.get("ticket_display"),
+            "blocks": blocks,
+            "ticket_display": ticket,
+            "number": ticket,
+            "service_name": service,
             "queue_id": event.get("queue_id"),
-            "queue_name": event.get("queue_name"),
+            "queue_name": queue_name,
             "logo_url": tpl.get("logo_url") or "",
             "social_line": tpl.get("social_line") or "",
             "paper_width": tpl.get("paper_width", "58mm"),
+            "qr_value": qr_value,
             "template": {
                 "title": tpl.get("title"),
                 "header": tpl.get("header"),
@@ -1006,6 +1096,7 @@ class QueueManager:
                 "logo_url": tpl.get("logo_url"),
                 "social_line": tpl.get("social_line"),
                 "paper_width": tpl.get("paper_width", "58mm"),
+                "show_qr": bool(tpl.get("show_qr")),
             },
         }
 

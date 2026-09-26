@@ -8,7 +8,7 @@ A standalone, professional **Queue & Ticket Management System** that runs entire
 
 No complex Lovelace card setup is required. The integration registers its own dedicated sidebar panel and a full-screen web app that syncs across tablets, staff counters, waiting-area TVs, and desktops.
 
-**Version 1.13.0** — light theme by default across all modes; automatic migration from older dark themes.
+**Version 1.13.1** — light theme by default across all modes; automatic migration from older dark themes.
 
 ---
 
@@ -251,7 +251,7 @@ queue_management_hacs/
 │   └── dashboard_display.yaml
 └── custom_components/queue_management/
     ├── __init__.py
-    ├── manifest.json        # version 1.13.0
+    ├── manifest.json        # version 1.13.1
     ├── const.py
     ├── config_flow.py
     ├── queue.py             # Engine + dark→light theme migration

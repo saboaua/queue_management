@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Queue Management</title>
-  <link rel="stylesheet" href="/queue_management/static/style.css?v=242" />
+  <link rel="stylesheet" href="/queue_management/static/style.css?v=243" />
 </head>
 <body>
   <div id="app">
@@ -372,30 +372,29 @@
 
           <div class="card full" data-tab="print">
             <h3>Ticket print layout</h3>
-            <p class="muted">Printed content + HA event <code>queue_management_ticket_issued</code> → <code>print.lines</code></p>
+            <p class="muted">Bank / kiosk style: large ticket number in the center. Event: <code>queue_management_ticket_issued</code> → <code>print.lines</code> + <code>print.blocks</code></p>
             <div class="logo-holder">
               <div class="logo-preview" id="logoPreview">
                 <span class="logo-placeholder">Logo preview</span>
                 <img id="logoImg" alt="Logo" hidden />
               </div>
               <div class="logo-fields">
-                <label>Logo URL (shown at top of ticket)</label>
+                <label>Logo URL (top of ticket)</label>
                 <input id="pt_logo" type="url" data-print placeholder="https://example.com/logo.png" />
-                <label>Social media line</label>
-                <input id="pt_social" type="text" data-print placeholder="f @company  |  ig @company  |  web.com" />
-                <p class="muted">Tip: use text or emoji icons, e.g. 👍 Facebook · 📷 Instagram · 🌐 site.com</p>
+                <label>Social / web line (bottom)</label>
+                <input id="pt_social" type="text" data-print placeholder="web.com  ·  @company" />
               </div>
             </div>
             <div class="form-grid">
               <div>
-                <label>Title</label>
-                <input id="pt_title" type="text" data-print />
-                <label>Header</label>
-                <input id="pt_header" type="text" data-print />
-                <label>Footer</label>
-                <input id="pt_footer" type="text" data-print />
+                <label>Brand / title</label>
+                <input id="pt_title" type="text" data-print placeholder="QUEUE TICKET" />
+                <label>Header (e.g. Welcome)</label>
+                <input id="pt_header" type="text" data-print placeholder="Welcome" />
+                <label>Footer (main message)</label>
+                <input id="pt_footer" type="text" data-print placeholder="Please wait to be served" />
                 <label>Extra line</label>
-                <input id="pt_extra" type="text" data-print />
+                <input id="pt_extra" type="text" data-print placeholder="Thank you for your patience" />
                 <label>Paper width</label>
                 <select id="pt_paper" data-print>
                   <option value="58mm">58mm</option>
@@ -404,15 +403,16 @@
               </div>
               <div>
                 <div class="checkbox-col">
-                  <label class="checkbox"><input type="checkbox" id="pt_show_number" data-print /> Show ticket number</label>
-                  <label class="checkbox"><input type="checkbox" id="pt_show_queue" data-print /> Show queue name</label>
-                  <label class="checkbox"><input type="checkbox" id="pt_show_datetime" data-print /> Show date/time</label>
+                  <label class="checkbox"><input type="checkbox" id="pt_show_number" data-print /> Large ticket number</label>
+                  <label class="checkbox"><input type="checkbox" id="pt_show_queue" data-print /> Show queue / branch name</label>
+                  <label class="checkbox"><input type="checkbox" id="pt_show_datetime" data-print /> Show date / time</label>
                   <label class="checkbox"><input type="checkbox" id="pt_show_waiting" data-print /> Show waiting ahead</label>
                   <label class="checkbox"><input type="checkbox" id="pt_show_eta" data-print /> Show estimated wait</label>
+                  <label class="checkbox"><input type="checkbox" id="pt_show_qr" data-print /> Include QR code line</label>
                 </div>
-                <div class="print-preview">
-                  <div class="preview-label">Preview</div>
-                  <pre id="pt_preview"></pre>
+                <div class="print-preview" id="pt_preview_wrap">
+                  <div class="preview-label">Thermal preview</div>
+                  <div id="pt_preview" class="pt-slip" aria-live="polite"></div>
                 </div>
               </div>
             </div>
@@ -445,6 +445,6 @@
     </div>
     <div id="toast" class="toast" hidden></div>
   </div>
-  <script src="/queue_management/static/app.js?v=242"></script>
+  <script src="/queue_management/static/app.js?v=243"></script>
 </body>
 </html>

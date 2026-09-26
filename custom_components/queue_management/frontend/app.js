@@ -483,6 +483,7 @@
     set("pt_show_datetime", t.show_datetime !== false, true);
     set("pt_show_waiting", t.show_waiting_count !== false, true);
     set("pt_show_eta", t.show_eta !== false, true);
+    set("pt_show_qr", t.show_qr !== false, true);
     updatePrintPreview();
   }
 
@@ -623,25 +624,45 @@
   function updatePrintPreview() {
     const pre = $("#pt_preview");
     if (!pre) return;
-    const lines = [];
-    const title = $("#pt_title")?.value;
-    const header = $("#pt_header")?.value;
-    const footer = $("#pt_footer")?.value;
-    const extra = $("#pt_extra")?.value;
-    const logo = $("#pt_logo")?.value;
-    const social = $("#pt_social")?.value;
-    if (logo) lines.push("[LOGO]");
-    if (title) lines.push(title);
-    if (header) lines.push(header);
-    if ($("#pt_show_queue")?.checked) lines.push("Queue: Main Queue");
-    if ($("#pt_show_number")?.checked) lines.push("Number: 42");
-    if ($("#pt_show_waiting")?.checked) lines.push("Waiting ahead: 3");
-    if ($("#pt_show_eta")?.checked) lines.push("Est. wait: ~6 min");
-    if ($("#pt_show_datetime")?.checked) lines.push(new Date().toLocaleString());
-    if (extra) lines.push(extra);
-    if (footer) lines.push(footer);
-    if (social) lines.push(social);
-    pre.textContent = lines.join("\n");
+    const title = ($("#pt_title")?.value || "").trim();
+    const header = ($("#pt_header")?.value || "").trim();
+    const footer = ($("#pt_footer")?.value || "").trim();
+    const extra = ($("#pt_extra")?.value || "").trim();
+    const logo = ($("#pt_logo")?.value || "").trim();
+    const social = ($("#pt_social")?.value || "").trim();
+    const showNum = !!$("#pt_show_number")?.checked;
+    const showQ = !!$("#pt_show_queue")?.checked;
+    const showDt = !!$("#pt_show_datetime")?.checked;
+    const showW = !!$("#pt_show_waiting")?.checked;
+    const showEta = !!$("#pt_show_eta")?.checked;
+    const showQr = !!$("#pt_show_qr")?.checked;
+    const dt = new Date().toLocaleString([], { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    let html = "";
+    if (logo) html += `<div class="pt-line pt-muted">[LOGO]</div>`;
+    if (header) html += `<div class="pt-line pt-small">${escapeAttr(header)}</div>`;
+    if (title) html += `<div class="pt-line pt-brand">${escapeAttr(title)}</div>`;
+    if (showQ) html += `<div class="pt-line">${escapeAttr("Main Queue")}</div>`;
+    html += `<div class="pt-line pt-gap"></div>`;
+    html += `<div class="pt-line pt-small">Service Type</div>`;
+    html += `<div class="pt-line">General</div>`;
+    if (showNum) {
+      html += `<div class="pt-line pt-gap"></div>`;
+      html += `<div class="pt-line pt-small">Your number</div>`;
+      html += `<div class="pt-number">A016</div>`;
+      html += `<div class="pt-line pt-gap"></div>`;
+    }
+    if (showDt) html += `<div class="pt-line pt-small">${escapeAttr(dt)}</div>`;
+    if (showW) html += `<div class="pt-line pt-small">Waiting ahead: 0</div>`;
+    if (showEta) html += `<div class="pt-line pt-small">Est. wait: Immediate</div>`;
+    html += `<div class="pt-line pt-gap"></div>`;
+    if (footer) html += `<div class="pt-line">${escapeAttr(footer)}</div>`;
+    if (extra) html += `<div class="pt-line pt-small">${escapeAttr(extra)}</div>`;
+    if (social) html += `<div class="pt-line pt-small">${escapeAttr(social)}</div>`;
+    if (showQr) {
+      html += `<div class="pt-qr" aria-hidden="true"><span></span></div>`;
+      html += `<div class="pt-line pt-small">Scan for status</div>`;
+    }
+    pre.innerHTML = html;
     updateLogoPreview(logo);
   }
 
@@ -1210,6 +1231,7 @@
           show_datetime: !!$("#pt_show_datetime")?.checked,
           show_waiting_count: !!$("#pt_show_waiting")?.checked,
           show_eta: !!$("#pt_show_eta")?.checked,
+          show_qr: !!$("#pt_show_qr")?.checked,
           logo_url: ($("#pt_logo")?.value || "").trim(),
           social_line: ($("#pt_social")?.value || "").trim(),
         },
